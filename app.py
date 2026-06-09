@@ -69,10 +69,7 @@ EXPECTED_COLUMNS = list(model.feature_names_in_)
 # HEADER
 # =========================
 st.title("AI-Powered Intrusion Detection System")
-st.write(
-    "Upload a CSV file containing network traffic data. "
-    "The system will analyze each flow and classify it as normal or malicious."
-)
+
 
 st.markdown("---")
 
