@@ -20,12 +20,7 @@ st.set_page_config(
 # =========================
 st.markdown("""
     <style>
-        /* General background */
-        .main {
-            background-color: #f4f6f9;
-        }
-
-        /* Title */
+        .main { background-color: #f4f6f9; }
         h1 {
             color: #1a1a2e;
             font-size: 28px;
@@ -34,16 +29,7 @@ st.markdown("""
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
-
-        /* Section headers */
-        h2, h3 {
-            color: #16213e;
-            font-size: 18px;
-            font-weight: 600;
-            margin-top: 20px;
-        }
-
-        /* Metric cards */
+        h2, h3 { color: #16213e; font-size: 18px; font-weight: 600; margin-top: 20px; }
         div[data-testid="metric-container"] {
             background-color: #ffffff;
             border: 1px solid #e0e0e0;
@@ -51,33 +37,15 @@ st.markdown("""
             padding: 15px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         }
-
-        /* Upload box */
         section[data-testid="stFileUploader"] {
             background-color: #ffffff;
             border: 1px dashed #cccccc;
             border-radius: 8px;
             padding: 10px;
         }
-
-        /* Dataframe */
-        .stDataFrame {
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        /* Alert boxes */
-        .stAlert {
-            border-radius: 8px;
-        }
-
-        /* Expander */
-        .streamlit-expanderHeader {
-            font-size: 14px;
-            color: #444;
-        }
-
-        /* Footer line */
+        .stDataFrame { border-radius: 8px; overflow: hidden; }
+        .stAlert { border-radius: 8px; }
+        .streamlit-expanderHeader { font-size: 14px; color: #444; }
         .footer {
             margin-top: 40px;
             border-top: 1px solid #e0e0e0;
@@ -174,6 +142,10 @@ if uploaded_file is not None:
         st.info(f"Extra columns ignored: {sorted(extra_columns)}")
 
     df = df[EXPECTED_COLUMNS]
+
+    # Fix infinity and NaN values
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.fillna(0)
 
     st.success("All required columns found. Running analysis...")
 
