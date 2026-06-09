@@ -87,14 +87,31 @@ with st.expander("View required column names"):
 # =========================
 st.subheader("Upload Network Traffic File")
 uploaded_file = st.file_uploader(
-    "Accepted format: CSV — Maximum size: 200MB",
-    type=["csv"],
+    "Accepted formats: CSV, Excel (.xlsx), JSON — Maximum size: 200MB",
+    type=["csv", "xlsx", "json"],
     label_visibility="visible"
 )
 
 if uploaded_file is not None:
 
-    df = pd.read_csv(uploaded_file)
+    # Detect file format and load accordingly
+    file_name = uploaded_file.name.lower()
+
+    if file_name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file)
+        st.info("File format detected: CSV")
+
+    elif file_name.endswith(".xlsx"):
+        df = pd.read_excel(uploaded_file)
+        st.info("File format detected: Excel")
+
+    elif file_name.endswith(".json"):
+        df = pd.read_json(uploaded_file)
+        st.info("File format detected: JSON")
+
+    else:
+        st.error("Unsupported file format. Please upload CSV, Excel or JSON.")
+        st.stop()
 
     # =========================
     # CLEAN COLUMN NAMES
