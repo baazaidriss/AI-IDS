@@ -5,6 +5,7 @@ import joblib
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("Agg")
+import time
 
 # =========================
 # PAGE CONFIG
@@ -54,6 +55,29 @@ st.markdown("""
             color: #999;
             text-align: center;
         }
+        .threat-box {
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .threat-safe {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 2px solid #4CAF50;
+        }
+        .threat-warning {
+            background-color: #fff8e1;
+            color: #f57f17;
+            border: 2px solid #FFC107;
+        }
+        .threat-critical {
+            background-color: #ffebee;
+            color: #b71c1c;
+            border: 2px solid #E53935;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -69,8 +93,7 @@ EXPECTED_COLUMNS = list(model.feature_names_in_)
 # HEADER
 # =========================
 st.title("AI-Powered Intrusion Detection System")
-
-
+st.markdown("Upload a network traffic file to analyze it for cyber threats using the trained Random Forest model.")
 st.markdown("---")
 
 # =========================
@@ -91,21 +114,18 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
 
-    # Detect file format and load accordingly
+    # Detect file format and load
     file_name = uploaded_file.name.lower()
 
     if file_name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
         st.info("File format detected: CSV")
-
     elif file_name.endswith(".xlsx"):
         df = pd.read_excel(uploaded_file)
         st.info("File format detected: Excel")
-
     elif file_name.endswith(".json"):
         df = pd.read_json(uploaded_file)
         st.info("File format detected: JSON")
-
     else:
         st.error("Unsupported file format. Please upload CSV, Excel or JSON.")
         st.stop()
@@ -125,7 +145,6 @@ if uploaded_file is not None:
     )
 
     cleaned_columns = df.columns.tolist()
-
     changed = []
     for orig, clean in zip(original_columns, cleaned_columns):
         if orig != clean:
@@ -157,12 +176,36 @@ if uploaded_file is not None:
 
     df = df[EXPECTED_COLUMNS]
 
-    # Fix infinity and NaN values
+    # Fix infinity and NaN
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.fillna(0)
 
-    st.success("All required columns found. Running analysis...")
+    # =========================
+    # REAL-TIME PROGRESS BAR
+    # =========================
+    st.markdown("---")
+    st.subheader("Running Analysis...")
 
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+
+    steps = [
+        (20, "Validating input data..."),
+        (40, "Preprocessing features..."),
+        (60, "Running Random Forest model..."),
+        (80, "Computing confidence scores..."),
+        (100, "Analysis complete!")
+    ]
+
+    for percent, message in steps:
+        time.sleep(0.4)
+        progress_bar.progress(percent)
+        status_text.text(message)
+
+    status_text.empty()
+    progress_bar.empty()
+
+    st.success("All required columns found. Analysis complete!")
     st.markdown("---")
 
     # =========================
@@ -171,7 +214,6 @@ if uploaded_file is not None:
     predictions = model.predict(df)
     proba = model.predict_proba(df)
     max_proba = np.max(proba, axis=1)
-
     labels = encoder.inverse_transform(predictions)
 
     df["Confidence"] = [f"{p*100:.1f}%" for p in max_proba]
@@ -194,11 +236,48 @@ if uploaded_file is not None:
 
     normal_count = (df["Prediction"] == "Normal Traffic").sum()
     attack_count = len(df) - normal_count
+    attack_percentage = (attack_count / len(df)) * 100
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Flows Analyzed", f"{len(df):,}")
     col2.metric("Normal Traffic", f"{normal_count:,}")
     col3.metric("Attacks Detected", f"{attack_count:,}")
+
+    st.markdown("---")
+
+    # =========================
+    # THREAT LEVEL INDICATOR
+    # =========================
+    st.subheader("Threat Level")
+
+    if attack_percentage == 0:
+        threat_level = "SAFE"
+        threat_class = "threat-safe"
+        threat_icon = "🟢"
+        threat_msg = "No threats detected. Network traffic appears normal."
+    elif attack_percentage < 30:
+        threat_level = "LOW"
+        threat_class = "threat-warning"
+        threat_icon = "🟡"
+        threat_msg = f"{attack_percentage:.1f}% of traffic flagged as suspicious. Monitor closely."
+    elif attack_percentage < 60:
+        threat_level = "WARNING"
+        threat_class = "threat-warning"
+        threat_icon = "🟠"
+        threat_msg = f"{attack_percentage:.1f}% of traffic flagged as attacks. Investigation recommended."
+    else:
+        threat_level = "CRITICAL"
+        threat_class = "threat-critical"
+        threat_icon = "🔴"
+        threat_msg = f"{attack_percentage:.1f}% of traffic identified as attacks. Immediate action required!"
+
+    st.markdown(
+        f'<div class="threat-box {threat_class}">'
+        f'{threat_icon} THREAT LEVEL: {threat_level}<br>'
+        f'<span style="font-size:14px; font-weight:normal;">{threat_msg}</span>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
 
