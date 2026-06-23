@@ -5,7 +5,6 @@ import joblib
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib.gridspec as gridspec
 matplotlib.use("Agg")
 import time
 from datetime import datetime
@@ -18,7 +17,7 @@ NORMAL_COLOR = "#4a7c59"
 ATTACK_COLOR = "#c0392b"
 NEUTRAL_COLOR = "#2c3e50"
 MEDIUM_COLOR = "#ca6f1e"
-CHART_SIZE = (5, 2.5)
+CHART_SIZE = (5, 3.5)
 
 # =========================
 # PAGE CONFIG
@@ -320,7 +319,7 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # CHARTS
+    # CHARTS — PIE + BAR
     # =========================
     st.subheader("Traffic Classification Distribution")
 
@@ -332,26 +331,33 @@ if uploaded_file is not None:
     col_left, col_pie, col_bar, col_right = st.columns([0.5, 2, 2, 0.5])
 
     with col_pie:
-        fig_pie, ax_pie = plt.subplots(figsize=(5, 2.5))
-        pie_labels = prediction_counts.index.tolist()
-        pie_sizes = prediction_counts.values.tolist()
-        pie_colors = [get_color(l) for l in pie_labels]
+        fig_pie, ax_pie = plt.subplots(figsize=CHART_SIZE)
+        pie_colors = [get_color(l) for l in prediction_counts.index]
 
-        wedges, texts, autotexts = ax_pie.pie(
-            pie_sizes,
+        wedges, _, autotexts = ax_pie.pie(
+            prediction_counts.values.tolist(),
             colors=pie_colors,
             autopct="%1.1f%%",
             startangle=90,
             textprops={"fontsize": 9, "color": NEUTRAL_COLOR}
         )
 
+        normal_wedge = wedges[prediction_counts.index.tolist().index("Normal Traffic")] if "Normal Traffic" in prediction_counts.index else wedges[0]
+        attack_wedge = wedges[[i for i, l in enumerate(prediction_counts.index) if l != "Normal Traffic"][0]] if attack_count > 0 else None
+
+        legend_handles = [normal_wedge]
+        legend_labels = ["Normal Traffic"]
+        if attack_wedge:
+            legend_handles.append(attack_wedge)
+            legend_labels.append("Attack Traffic")
+
         ax_pie.legend(
-            wedges,
-            pie_labels,
+            legend_handles,
+            legend_labels,
             loc="lower center",
-            bbox_to_anchor=(0.5, -0.15),
+            bbox_to_anchor=(0.5, -0.08),
             ncol=2,
-            fontsize=8
+            fontsize=9
         )
 
         ax_pie.set_title("Traffic Composition", fontsize=11, color=NEUTRAL_COLOR)
@@ -359,7 +365,7 @@ if uploaded_file is not None:
         st.pyplot(fig_pie)
 
     with col_bar:
-        fig_bar, ax_bar = plt.subplots(figsize=(5, 2.5))
+        fig_bar, ax_bar = plt.subplots(figsize=CHART_SIZE)
         bar_colors = [get_color(l) for l in prediction_counts.index]
 
         prediction_counts.plot(
@@ -430,7 +436,12 @@ if uploaded_file is not None:
         risk_values = [low_risk, med_risk, high_risk]
         risk_colors = [NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR]
 
-        bars = ax_risk.bar(risk_labels, risk_values, color=risk_colors, edgecolor="white", linewidth=0.5)
+        bars = ax_risk.bar(
+            risk_labels, risk_values,
+            color=risk_colors,
+            edgecolor="white",
+            linewidth=0.5
+        )
 
         for bar, val in zip(bars, risk_values):
             ax_risk.text(
@@ -490,7 +501,6 @@ if uploaded_file is not None:
             fig = plt.figure(figsize=(11, 8.5))
             fig.patch.set_facecolor("white")
 
-            # Title
             fig.text(0.5, 0.95, "AI-IDS SECURITY INCIDENT REPORT",
                      ha="center", va="top", fontsize=18,
                      fontweight="bold", color=NEUTRAL_COLOR)
@@ -498,12 +508,10 @@ if uploaded_file is not None:
             fig.text(0.5, 0.91, f"Generated: {now}   |   File: {uploaded_file.name}",
                      ha="center", va="top", fontsize=10, color="gray")
 
-            # Divider
             ax_line = fig.add_axes([0.05, 0.89, 0.9, 0.005])
             ax_line.axhline(0, color=ATTACK_COLOR, linewidth=2)
             ax_line.axis("off")
 
-            # Threat level box
             threat_color_map = {
                 "SAFE": NORMAL_COLOR,
                 "LOW": "#d4ac0d",
@@ -519,12 +527,10 @@ if uploaded_file is not None:
             fig.text(0.5, 0.80, threat_msg,
                      ha="center", va="top", fontsize=10, color=NEUTRAL_COLOR)
 
-            # Divider
             ax_line2 = fig.add_axes([0.05, 0.77, 0.9, 0.005])
             ax_line2.axhline(0, color="#e0e0e0", linewidth=1)
             ax_line2.axis("off")
 
-            # Summary stats
             summary_data = [
                 ["Total Flows Analyzed", f"{len(df):,}"],
                 ["Normal Traffic", f"{normal_count:,}"],
@@ -544,14 +550,11 @@ if uploaded_file is not None:
                          fontweight="bold", color=NEUTRAL_COLOR)
                 y_pos -= 0.05
 
-            # Divider
             ax_line3 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
             ax_line3.axhline(0, color="#e0e0e0", linewidth=1)
             ax_line3.axis("off")
-
             y_pos -= 0.02
 
-            # Risk breakdown
             fig.text(0.05, y_pos + 0.01, "RISK BREAKDOWN",
                      fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
             y_pos -= 0.04
@@ -567,12 +570,11 @@ if uploaded_file is not None:
                 fig.text(0.55, y_pos, value, fontsize=10, color=NEUTRAL_COLOR)
                 y_pos -= 0.05
 
-            # Attack breakdown
             ax_line4 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
             ax_line4.axhline(0, color="#e0e0e0", linewidth=1)
             ax_line4.axis("off")
-
             y_pos -= 0.02
+
             fig.text(0.05, y_pos + 0.01, "ATTACK BREAKDOWN",
                      fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
             y_pos -= 0.04
@@ -587,12 +589,11 @@ if uploaded_file is not None:
                 fig.text(0.08, y_pos, "No attacks detected.", fontsize=10, color=NORMAL_COLOR)
                 y_pos -= 0.05
 
-            # Recommendations
             ax_line5 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
             ax_line5.axhline(0, color="#e0e0e0", linewidth=1)
             ax_line5.axis("off")
-
             y_pos -= 0.02
+
             fig.text(0.05, y_pos + 0.01, "RECOMMENDATIONS",
                      fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
             y_pos -= 0.04
@@ -616,7 +617,6 @@ if uploaded_file is not None:
                 fig.text(0.08, y_pos, f"- {rec}", fontsize=9, color=NEUTRAL_COLOR)
                 y_pos -= 0.04
 
-            # Footer
             fig.text(0.5, 0.02,
                      "AI-IDS — BAAZA Idriss — 2025/2026 | https://ai-ids-baaza.streamlit.app",
                      ha="center", fontsize=8, color="gray")
@@ -631,21 +631,26 @@ if uploaded_file is not None:
             fig2.text(0.5, 0.97, "AI-IDS — Visual Analysis",
                       ha="center", fontsize=14, fontweight="bold", color=NEUTRAL_COLOR)
 
-            # Pie chart
             ax_pie2 = fig2.add_subplot(2, 2, 1)
-            pie_labels2 = prediction_counts.index.tolist()
-            pie_sizes2 = prediction_counts.values.tolist()
-            pie_colors2 = [get_color(l) for l in pie_labels2]
-            wedges2, _, autotexts2 = ax_pie2.pie(
-                pie_sizes2, colors=pie_colors2,
-                autopct="%1.1f%%", startangle=90,
+            pie_colors2 = [get_color(l) for l in prediction_counts.index]
+            wedges2, _, _ = ax_pie2.pie(
+                prediction_counts.values.tolist(),
+                colors=pie_colors2,
+                autopct="%1.1f%%",
+                startangle=90,
                 textprops={"fontsize": 8}
             )
-            ax_pie2.legend(wedges2, pie_labels2, loc="lower center",
-                           bbox_to_anchor=(0.5, -0.2), ncol=2, fontsize=7)
+            normal_w = wedges2[prediction_counts.index.tolist().index("Normal Traffic")] if "Normal Traffic" in prediction_counts.index else wedges2[0]
+            attack_w = wedges2[[i for i, l in enumerate(prediction_counts.index) if l != "Normal Traffic"][0]] if attack_count > 0 else None
+            h = [normal_w]
+            lb = ["Normal Traffic"]
+            if attack_w:
+                h.append(attack_w)
+                lb.append("Attack Traffic")
+            ax_pie2.legend(h, lb, loc="lower center",
+                           bbox_to_anchor=(0.5, -0.12), ncol=2, fontsize=7)
             ax_pie2.set_title("Traffic Composition", fontsize=10, color=NEUTRAL_COLOR)
 
-            # Bar chart
             ax_bar2 = fig2.add_subplot(2, 2, 2)
             bar_colors2 = [get_color(l) for l in prediction_counts.index]
             prediction_counts.plot(kind="bar", ax=ax_bar2,
@@ -656,7 +661,6 @@ if uploaded_file is not None:
             ax_bar2.spines["right"].set_visible(False)
             plt.setp(ax_bar2.xaxis.get_majorticklabels(), rotation=30, fontsize=7)
 
-            # Attack breakdown
             if attack_count > 0:
                 ax_attack2 = fig2.add_subplot(2, 2, 3)
                 attack_df2 = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
@@ -667,13 +671,11 @@ if uploaded_file is not None:
                 ax_attack2.spines["top"].set_visible(False)
                 ax_attack2.spines["right"].set_visible(False)
 
-            # Risk distribution
             ax_risk2 = fig2.add_subplot(2, 2, 4)
-            risk_labels2 = ["Low", "Medium", "High"]
-            risk_values2 = [low_risk, med_risk, high_risk]
-            risk_colors2 = [NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR]
-            ax_risk2.bar(risk_labels2, risk_values2,
-                         color=risk_colors2, edgecolor="white")
+            ax_risk2.bar(["Low", "Medium", "High"],
+                         [low_risk, med_risk, high_risk],
+                         color=[NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR],
+                         edgecolor="white")
             ax_risk2.set_title("Risk Level Distribution", fontsize=10, color=NEUTRAL_COLOR)
             ax_risk2.set_ylabel("Number of Flows", fontsize=8)
             ax_risk2.spines["top"].set_visible(False)
