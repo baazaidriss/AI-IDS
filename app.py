@@ -4,9 +4,12 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.gridspec as gridspec
 matplotlib.use("Agg")
 import time
 from datetime import datetime
+import io
 
 # =========================
 # COLOR PALETTE
@@ -15,6 +18,7 @@ NORMAL_COLOR = "#4a7c59"
 ATTACK_COLOR = "#c0392b"
 NEUTRAL_COLOR = "#2c3e50"
 MEDIUM_COLOR = "#ca6f1e"
+CHART_SIZE = (5, 2.5)
 
 # =========================
 # PAGE CONFIG
@@ -101,16 +105,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CHART SIZE
-# =========================
-CHART_SIZE = (5, 3)
-
-# =========================
 # LOAD MODEL
 # =========================
 model = joblib.load("rf_ids_model.pkl")
 encoder = joblib.load("label_encoder.pkl")
-
 EXPECTED_COLUMNS = list(model.feature_names_in_)
 
 # =========================
@@ -120,9 +118,6 @@ st.title("AI-Powered Intrusion Detection System")
 st.markdown("Upload a network traffic file to analyze it for cyber threats using the trained Random Forest model.")
 st.markdown("---")
 
-# =========================
-# COLUMN INFO
-# =========================
 with st.expander("View required column names"):
     st.write(EXPECTED_COLUMNS)
 
@@ -150,14 +145,10 @@ if uploaded_file is not None:
         df = pd.read_json(uploaded_file)
         st.info("File format detected: JSON")
     else:
-        st.error("Unsupported file format. Please upload CSV, Excel or JSON.")
+        st.error("Unsupported file format.")
         st.stop()
 
-    # =========================
-    # CLEAN COLUMN NAMES
-    # =========================
     original_columns = df.columns.tolist()
-
     df.columns = (
         df.columns
         .str.strip()
@@ -172,7 +163,6 @@ if uploaded_file is not None:
     for orig, clean in zip(original_columns, cleaned_columns):
         if orig != clean:
             changed.append(f"'{orig}' -> '{clean}'")
-
     if changed:
         with st.expander("Column names were normalized"):
             for c in changed[:10]:
@@ -180,18 +170,14 @@ if uploaded_file is not None:
             if len(changed) > 10:
                 st.text(f"... and {len(changed) - 10} more")
 
-    # =========================
-    # CHECK COLUMNS
-    # =========================
     uploaded_columns = set(df.columns)
     expected_columns = set(EXPECTED_COLUMNS)
-
     missing_columns = expected_columns - uploaded_columns
     extra_columns = uploaded_columns - expected_columns
 
     if missing_columns:
         st.error(f"Missing columns: {sorted(missing_columns)}")
-        st.warning("Please fix the CSV file and re-upload.")
+        st.warning("Please fix the file and re-upload.")
         st.stop()
 
     if extra_columns:
@@ -225,7 +211,6 @@ if uploaded_file is not None:
 
     status_text.empty()
     progress_bar.empty()
-
     st.success("All required columns found. Analysis complete!")
     st.markdown("---")
 
@@ -257,11 +242,7 @@ if uploaded_file is not None:
             base = 70
         return min(int(base * confidence), 100)
 
-    risk_scores = [
-        compute_risk_score(label, conf)
-        for label, conf in zip(labels, max_proba)
-    ]
-
+    risk_scores = [compute_risk_score(l, c) for l, c in zip(labels, max_proba)]
     df["Risk Score"] = risk_scores
 
     def risk_category(score):
@@ -294,6 +275,9 @@ if uploaded_file is not None:
     attack_count = len(df) - normal_count
     attack_percentage = (attack_count / len(df)) * 100
     high_risk_count = (df["Risk Level"] == "High").sum()
+    low_risk = (df["Risk Level"] == "Low").sum()
+    med_risk = (df["Risk Level"] == "Medium").sum()
+    high_risk = (df["Risk Level"] == "High").sum()
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Flows Analyzed", f"{len(df):,}")
@@ -336,7 +320,7 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # CHARTS — PIE + BAR (same height, centered)
+    # CHARTS
     # =========================
     st.subheader("Traffic Classification Distribution")
 
@@ -348,19 +332,28 @@ if uploaded_file is not None:
     col_left, col_pie, col_bar, col_right = st.columns([0.5, 2, 2, 0.5])
 
     with col_pie:
-        fig_pie, ax_pie = plt.subplots(figsize=CHART_SIZE)
+        fig_pie, ax_pie = plt.subplots(figsize=(5, 2.5))
         pie_labels = prediction_counts.index.tolist()
         pie_sizes = prediction_counts.values.tolist()
         pie_colors = [get_color(l) for l in pie_labels]
 
-        ax_pie.pie(
+        wedges, texts, autotexts = ax_pie.pie(
             pie_sizes,
-            labels=pie_labels,
             colors=pie_colors,
             autopct="%1.1f%%",
             startangle=90,
             textprops={"fontsize": 9, "color": NEUTRAL_COLOR}
         )
+
+        ax_pie.legend(
+            wedges,
+            pie_labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, -0.15),
+            ncol=2,
+            fontsize=8
+        )
+
         ax_pie.set_title("Traffic Composition", fontsize=11, color=NEUTRAL_COLOR)
         plt.tight_layout()
         st.pyplot(fig_pie)
@@ -395,9 +388,7 @@ if uploaded_file is not None:
     st.subheader("Security Assessment")
 
     if attack_count == 0:
-        st.success(
-            "No attacks detected. The analyzed network traffic appears normal."
-        )
+        st.success("No attacks detected. The analyzed network traffic appears normal.")
     else:
         st.error(
             f"Intrusion detected — {attack_count:,} suspicious flow(s) identified. "
@@ -405,18 +396,12 @@ if uploaded_file is not None:
         )
 
         st.subheader("Attack Type Breakdown")
-
         attack_df = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
 
         col_left2, col_mid2, col_right2 = st.columns([1, 2, 1])
         with col_mid2:
             fig2, ax2 = plt.subplots(figsize=CHART_SIZE)
-            attack_df.plot(
-                kind="barh",
-                ax=ax2,
-                color=ATTACK_COLOR,
-                edgecolor="white"
-            )
+            attack_df.plot(kind="barh", ax=ax2, color=ATTACK_COLOR, edgecolor="white")
             ax2.set_xlabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
             ax2.set_ylabel("")
             ax2.set_title("Detected Attack Types", fontsize=11, color=NEUTRAL_COLOR)
@@ -433,10 +418,6 @@ if uploaded_file is not None:
     # =========================
     st.subheader("Risk Score Distribution")
 
-    low_risk = (df["Risk Level"] == "Low").sum()
-    med_risk = (df["Risk Level"] == "Medium").sum()
-    high_risk = (df["Risk Level"] == "High").sum()
-
     risk_col1, risk_col2, risk_col3 = st.columns(3)
     risk_col1.metric("Low Risk (0-30)", f"{low_risk:,}")
     risk_col2.metric("Medium Risk (31-70)", f"{med_risk:,}")
@@ -445,18 +426,11 @@ if uploaded_file is not None:
     col_left3, col_mid3, col_right3 = st.columns([1, 2, 1])
     with col_mid3:
         fig_risk, ax_risk = plt.subplots(figsize=CHART_SIZE)
-
         risk_labels = ["Low (0-30)", "Medium (31-70)", "High (71-100)"]
         risk_values = [low_risk, med_risk, high_risk]
         risk_colors = [NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR]
 
-        bars = ax_risk.bar(
-            risk_labels,
-            risk_values,
-            color=risk_colors,
-            edgecolor="white",
-            linewidth=0.5
-        )
+        bars = ax_risk.bar(risk_labels, risk_values, color=risk_colors, edgecolor="white", linewidth=0.5)
 
         for bar, val in zip(bars, risk_values):
             ax_risk.text(
@@ -479,7 +453,7 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # FILTER + DETAILED TABLE
+    # FILTER + TABLE
     # =========================
     st.subheader("Detailed Flow Analysis")
 
@@ -490,10 +464,8 @@ if uploaded_file is not None:
     selected_risk = st.selectbox("Filter by risk level:", all_risk_levels)
 
     filtered_df = df.copy()
-
     if selected_type != "All":
         filtered_df = filtered_df[filtered_df["Prediction"] == selected_type]
-
     if selected_risk != "All":
         filtered_df = filtered_df[filtered_df["Risk Level"] == selected_risk]
 
@@ -503,104 +475,229 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # DOWNLOAD REPORT
+    # PDF REPORT
     # =========================
     st.subheader("Download Incident Report")
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    report_text = f"""
-============================================================
-       AI-IDS SECURITY INCIDENT REPORT
-============================================================
-Generated     : {now}
-File Analyzed : {uploaded_file.name}
-------------------------------------------------------------
+    def generate_pdf_report():
+        pdf_buffer = io.BytesIO()
 
-EXECUTIVE SUMMARY
------------------
-Total Flows Analyzed : {len(df):,}
-Normal Traffic       : {normal_count:,}
-Attacks Detected     : {attack_count:,}
-Attack Percentage    : {attack_percentage:.1f}%
-Threat Level         : {threat_level}
-High Risk Flows      : {high_risk_count:,}
+        with PdfPages(pdf_buffer) as pdf:
 
-RISK BREAKDOWN
---------------
-Low Risk  (0-30)    : {low_risk:,} flows
-Medium Risk (31-70) : {med_risk:,} flows
-High Risk (71-100)  : {high_risk:,} flows
+            # ---- PAGE 1: SUMMARY ----
+            fig = plt.figure(figsize=(11, 8.5))
+            fig.patch.set_facecolor("white")
 
-LOW CONFIDENCE FLAGS
---------------------
-Predictions below 70% confidence : {low_confidence_count}
-Manual review recommended        : {"Yes" if low_confidence_count > 0 else "No"}
+            # Title
+            fig.text(0.5, 0.95, "AI-IDS SECURITY INCIDENT REPORT",
+                     ha="center", va="top", fontsize=18,
+                     fontweight="bold", color=NEUTRAL_COLOR)
 
-ATTACK BREAKDOWN
-----------------
-"""
+            fig.text(0.5, 0.91, f"Generated: {now}   |   File: {uploaded_file.name}",
+                     ha="center", va="top", fontsize=10, color="gray")
 
-    if attack_count > 0:
-        attack_counts = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
-        for attack_type, count in attack_counts.items():
-            report_text += f"{attack_type:<25} : {count:,} flows\n"
-    else:
-        report_text += "No attacks detected.\n"
+            # Divider
+            ax_line = fig.add_axes([0.05, 0.89, 0.9, 0.005])
+            ax_line.axhline(0, color=ATTACK_COLOR, linewidth=2)
+            ax_line.axis("off")
 
-    report_text += """
-------------------------------------------------------------
-RECOMMENDATIONS
----------------
-"""
-    if threat_level == "SAFE":
-        report_text += "- Network traffic appears normal. Continue routine monitoring.\n"
-    elif threat_level == "LOW":
-        report_text += "- Low level of suspicious traffic detected. Monitor closely.\n"
-        report_text += "- Review flagged connections in the detailed table.\n"
-    elif threat_level == "WARNING":
-        report_text += "- Significant attack traffic detected. Investigate immediately.\n"
-        report_text += "- Consider blocking suspicious source IPs.\n"
-        report_text += "- Review all low-confidence predictions manually.\n"
-    else:
-        report_text += "- CRITICAL: Majority of traffic is malicious. Immediate action required.\n"
-        report_text += "- Isolate affected network segments immediately.\n"
-        report_text += "- Contact security team and escalate to incident response.\n"
-        report_text += "- Preserve logs for forensic analysis.\n"
+            # Threat level box
+            threat_color_map = {
+                "SAFE": NORMAL_COLOR,
+                "LOW": "#d4ac0d",
+                "WARNING": MEDIUM_COLOR,
+                "CRITICAL": ATTACK_COLOR
+            }
+            tcolor = threat_color_map.get(threat_level, NEUTRAL_COLOR)
 
-    report_text += f"""
-------------------------------------------------------------
-SYSTEM INFORMATION
-------------------
-Model          : Random Forest (500 trees)
-Training Data  : CICIDS2017 (69,150 samples)
-Test Accuracy  : 99.83%
-NSL-KDD Valid. : 98.62%
-Dashboard      : https://ai-ids-baaza.streamlit.app
-GitHub         : https://github.com/baazaidriss/AI-IDS
-============================================================
-        AI-IDS — BAAZA Idriss — 2025/2026
-============================================================
-"""
+            fig.text(0.5, 0.84, f"THREAT LEVEL: {threat_level}",
+                     ha="center", va="top", fontsize=16,
+                     fontweight="bold", color=tcolor)
 
-    col_dl1, col_dl2 = st.columns(2)
+            fig.text(0.5, 0.80, threat_msg,
+                     ha="center", va="top", fontsize=10, color=NEUTRAL_COLOR)
 
-    with col_dl1:
-        st.download_button(
-            label="Download Text Report",
-            data=report_text,
-            file_name=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            mime="text/plain"
-        )
+            # Divider
+            ax_line2 = fig.add_axes([0.05, 0.77, 0.9, 0.005])
+            ax_line2.axhline(0, color="#e0e0e0", linewidth=1)
+            ax_line2.axis("off")
 
-    with col_dl2:
-        csv_report = df.to_csv(index=False)
-        st.download_button(
-            label="Download Full Results (CSV)",
-            data=csv_report,
-            file_name=f"AI-IDS_Results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
+            # Summary stats
+            summary_data = [
+                ["Total Flows Analyzed", f"{len(df):,}"],
+                ["Normal Traffic", f"{normal_count:,}"],
+                ["Attacks Detected", f"{attack_count:,}"],
+                ["Attack Percentage", f"{attack_percentage:.1f}%"],
+                ["High Risk Flows", f"{high_risk_count:,}"],
+                ["Low Confidence Flags", f"{low_confidence_count}"],
+            ]
+
+            y_pos = 0.73
+            fig.text(0.05, y_pos + 0.03, "EXECUTIVE SUMMARY",
+                     fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
+
+            for label, value in summary_data:
+                fig.text(0.08, y_pos, label, fontsize=10, color=NEUTRAL_COLOR)
+                fig.text(0.55, y_pos, value, fontsize=10,
+                         fontweight="bold", color=NEUTRAL_COLOR)
+                y_pos -= 0.05
+
+            # Divider
+            ax_line3 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
+            ax_line3.axhline(0, color="#e0e0e0", linewidth=1)
+            ax_line3.axis("off")
+
+            y_pos -= 0.02
+
+            # Risk breakdown
+            fig.text(0.05, y_pos + 0.01, "RISK BREAKDOWN",
+                     fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
+            y_pos -= 0.04
+
+            risk_data = [
+                ["Low Risk (0-30)", f"{low_risk:,} flows", NORMAL_COLOR],
+                ["Medium Risk (31-70)", f"{med_risk:,} flows", MEDIUM_COLOR],
+                ["High Risk (71-100)", f"{high_risk:,} flows", ATTACK_COLOR],
+            ]
+
+            for label, value, color in risk_data:
+                fig.text(0.08, y_pos, label, fontsize=10, color=color, fontweight="bold")
+                fig.text(0.55, y_pos, value, fontsize=10, color=NEUTRAL_COLOR)
+                y_pos -= 0.05
+
+            # Attack breakdown
+            ax_line4 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
+            ax_line4.axhline(0, color="#e0e0e0", linewidth=1)
+            ax_line4.axis("off")
+
+            y_pos -= 0.02
+            fig.text(0.05, y_pos + 0.01, "ATTACK BREAKDOWN",
+                     fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
+            y_pos -= 0.04
+
+            if attack_count > 0:
+                attack_counts = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
+                for attack_type, count in attack_counts.items():
+                    fig.text(0.08, y_pos, attack_type, fontsize=10, color=ATTACK_COLOR)
+                    fig.text(0.55, y_pos, f"{count:,} flows", fontsize=10, color=NEUTRAL_COLOR)
+                    y_pos -= 0.05
+            else:
+                fig.text(0.08, y_pos, "No attacks detected.", fontsize=10, color=NORMAL_COLOR)
+                y_pos -= 0.05
+
+            # Recommendations
+            ax_line5 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
+            ax_line5.axhline(0, color="#e0e0e0", linewidth=1)
+            ax_line5.axis("off")
+
+            y_pos -= 0.02
+            fig.text(0.05, y_pos + 0.01, "RECOMMENDATIONS",
+                     fontsize=12, fontweight="bold", color=NEUTRAL_COLOR)
+            y_pos -= 0.04
+
+            if threat_level == "SAFE":
+                recs = ["Network traffic appears normal. Continue routine monitoring."]
+            elif threat_level == "LOW":
+                recs = ["Low level of suspicious traffic detected. Monitor closely.",
+                        "Review flagged connections in the detailed table."]
+            elif threat_level == "WARNING":
+                recs = ["Significant attack traffic detected. Investigate immediately.",
+                        "Consider blocking suspicious source IPs.",
+                        "Review all low-confidence predictions manually."]
+            else:
+                recs = ["CRITICAL: Majority of traffic is malicious. Immediate action required.",
+                        "Isolate affected network segments immediately.",
+                        "Contact security team and escalate to incident response.",
+                        "Preserve logs for forensic analysis."]
+
+            for rec in recs:
+                fig.text(0.08, y_pos, f"- {rec}", fontsize=9, color=NEUTRAL_COLOR)
+                y_pos -= 0.04
+
+            # Footer
+            fig.text(0.5, 0.02,
+                     "AI-IDS — BAAZA Idriss — 2025/2026 | https://ai-ids-baaza.streamlit.app",
+                     ha="center", fontsize=8, color="gray")
+
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+            # ---- PAGE 2: CHARTS ----
+            fig2 = plt.figure(figsize=(11, 8.5))
+            fig2.patch.set_facecolor("white")
+
+            fig2.text(0.5, 0.97, "AI-IDS — Visual Analysis",
+                      ha="center", fontsize=14, fontweight="bold", color=NEUTRAL_COLOR)
+
+            # Pie chart
+            ax_pie2 = fig2.add_subplot(2, 2, 1)
+            pie_labels2 = prediction_counts.index.tolist()
+            pie_sizes2 = prediction_counts.values.tolist()
+            pie_colors2 = [get_color(l) for l in pie_labels2]
+            wedges2, _, autotexts2 = ax_pie2.pie(
+                pie_sizes2, colors=pie_colors2,
+                autopct="%1.1f%%", startangle=90,
+                textprops={"fontsize": 8}
+            )
+            ax_pie2.legend(wedges2, pie_labels2, loc="lower center",
+                           bbox_to_anchor=(0.5, -0.2), ncol=2, fontsize=7)
+            ax_pie2.set_title("Traffic Composition", fontsize=10, color=NEUTRAL_COLOR)
+
+            # Bar chart
+            ax_bar2 = fig2.add_subplot(2, 2, 2)
+            bar_colors2 = [get_color(l) for l in prediction_counts.index]
+            prediction_counts.plot(kind="bar", ax=ax_bar2,
+                                   color=bar_colors2, edgecolor="white")
+            ax_bar2.set_title("Prediction Distribution", fontsize=10, color=NEUTRAL_COLOR)
+            ax_bar2.set_ylabel("Number of Flows", fontsize=8)
+            ax_bar2.spines["top"].set_visible(False)
+            ax_bar2.spines["right"].set_visible(False)
+            plt.setp(ax_bar2.xaxis.get_majorticklabels(), rotation=30, fontsize=7)
+
+            # Attack breakdown
+            if attack_count > 0:
+                ax_attack2 = fig2.add_subplot(2, 2, 3)
+                attack_df2 = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
+                attack_df2.plot(kind="barh", ax=ax_attack2,
+                                color=ATTACK_COLOR, edgecolor="white")
+                ax_attack2.set_title("Attack Type Breakdown", fontsize=10, color=NEUTRAL_COLOR)
+                ax_attack2.set_xlabel("Number of Flows", fontsize=8)
+                ax_attack2.spines["top"].set_visible(False)
+                ax_attack2.spines["right"].set_visible(False)
+
+            # Risk distribution
+            ax_risk2 = fig2.add_subplot(2, 2, 4)
+            risk_labels2 = ["Low", "Medium", "High"]
+            risk_values2 = [low_risk, med_risk, high_risk]
+            risk_colors2 = [NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR]
+            ax_risk2.bar(risk_labels2, risk_values2,
+                         color=risk_colors2, edgecolor="white")
+            ax_risk2.set_title("Risk Level Distribution", fontsize=10, color=NEUTRAL_COLOR)
+            ax_risk2.set_ylabel("Number of Flows", fontsize=8)
+            ax_risk2.spines["top"].set_visible(False)
+            ax_risk2.spines["right"].set_visible(False)
+
+            fig2.text(0.5, 0.02,
+                      "AI-IDS — BAAZA Idriss — 2025/2026 | https://ai-ids-baaza.streamlit.app",
+                      ha="center", fontsize=8, color="gray")
+
+            plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+            pdf.savefig(fig2, bbox_inches="tight")
+            plt.close(fig2)
+
+        pdf_buffer.seek(0)
+        return pdf_buffer
+
+    pdf_data = generate_pdf_report()
+
+    st.download_button(
+        label="Download PDF Report",
+        data=pdf_data,
+        file_name=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+        mime="application/pdf"
+    )
 
     # =========================
     # FOOTER
