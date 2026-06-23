@@ -14,6 +14,7 @@ from datetime import datetime
 NORMAL_COLOR = "#4a7c59"
 ATTACK_COLOR = "#c0392b"
 NEUTRAL_COLOR = "#2c3e50"
+MEDIUM_COLOR = "#ca6f1e"
 
 # =========================
 # PAGE CONFIG
@@ -98,6 +99,11 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+# =========================
+# CHART SIZE
+# =========================
+CHART_SIZE = (5, 3)
 
 # =========================
 # LOAD MODEL
@@ -192,7 +198,6 @@ if uploaded_file is not None:
         st.info(f"Extra columns ignored: {sorted(extra_columns)}")
 
     df = df[EXPECTED_COLUMNS]
-
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.fillna(0)
 
@@ -250,8 +255,7 @@ if uploaded_file is not None:
             base = 50
         else:
             base = 70
-        risk = base * confidence
-        return min(int(risk), 100)
+        return min(int(base * confidence), 100)
 
     risk_scores = [
         compute_risk_score(label, conf)
@@ -332,22 +336,19 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # CHARTS — PIE + BAR
+    # CHARTS — PIE + BAR (same height, centered)
     # =========================
     st.subheader("Traffic Classification Distribution")
 
     prediction_counts = df["Prediction"].value_counts()
 
     def get_color(label):
-        if label == "Normal Traffic":
-            return NORMAL_COLOR
-        else:
-            return ATTACK_COLOR
+        return NORMAL_COLOR if label == "Normal Traffic" else ATTACK_COLOR
 
-    col_pie, col_bar = st.columns(2)
+    col_left, col_pie, col_bar, col_right = st.columns([0.5, 2, 2, 0.5])
 
     with col_pie:
-        fig_pie, ax_pie = plt.subplots(figsize=(5, 3))
+        fig_pie, ax_pie = plt.subplots(figsize=CHART_SIZE)
         pie_labels = prediction_counts.index.tolist()
         pie_sizes = prediction_counts.values.tolist()
         pie_colors = [get_color(l) for l in pie_labels]
@@ -365,7 +366,7 @@ if uploaded_file is not None:
         st.pyplot(fig_pie)
 
     with col_bar:
-        fig_bar, ax_bar = plt.subplots(figsize=(5, 3))
+        fig_bar, ax_bar = plt.subplots(figsize=CHART_SIZE)
         bar_colors = [get_color(l) for l in prediction_counts.index]
 
         prediction_counts.plot(
@@ -407,25 +408,22 @@ if uploaded_file is not None:
 
         attack_df = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
 
-        fig2, ax2 = plt.subplots(figsize=(5, 3))
-
-        attack_df.plot(
-            kind="barh",
-            ax=ax2,
-            color=ATTACK_COLOR,
-            edgecolor="white"
-        )
-
-        ax2.set_xlabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
-        ax2.set_ylabel("")
-        ax2.set_title("Detected Attack Types", fontsize=11, color=NEUTRAL_COLOR)
-        ax2.spines["top"].set_visible(False)
-        ax2.spines["right"].set_visible(False)
-        ax2.tick_params(colors=NEUTRAL_COLOR)
-        plt.tight_layout()
-
-        col_chart2, col_space2 = st.columns([2, 1])
-        with col_chart2:
+        col_left2, col_mid2, col_right2 = st.columns([1, 2, 1])
+        with col_mid2:
+            fig2, ax2 = plt.subplots(figsize=CHART_SIZE)
+            attack_df.plot(
+                kind="barh",
+                ax=ax2,
+                color=ATTACK_COLOR,
+                edgecolor="white"
+            )
+            ax2.set_xlabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
+            ax2.set_ylabel("")
+            ax2.set_title("Detected Attack Types", fontsize=11, color=NEUTRAL_COLOR)
+            ax2.spines["top"].set_visible(False)
+            ax2.spines["right"].set_visible(False)
+            ax2.tick_params(colors=NEUTRAL_COLOR)
+            plt.tight_layout()
             st.pyplot(fig2)
 
     st.markdown("---")
@@ -444,37 +442,39 @@ if uploaded_file is not None:
     risk_col2.metric("Medium Risk (31-70)", f"{med_risk:,}")
     risk_col3.metric("High Risk (71-100)", f"{high_risk:,}")
 
-    fig_risk, ax_risk = plt.subplots(figsize=(6, 3))
+    col_left3, col_mid3, col_right3 = st.columns([1, 2, 1])
+    with col_mid3:
+        fig_risk, ax_risk = plt.subplots(figsize=CHART_SIZE)
 
-    risk_labels = ["Low (0-30)", "Medium (31-70)", "High (71-100)"]
-    risk_values = [low_risk, med_risk, high_risk]
-    risk_colors = [NORMAL_COLOR, "#ca6f1e", ATTACK_COLOR]
+        risk_labels = ["Low (0-30)", "Medium (31-70)", "High (71-100)"]
+        risk_values = [low_risk, med_risk, high_risk]
+        risk_colors = [NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR]
 
-    bars = ax_risk.bar(
-        risk_labels,
-        risk_values,
-        color=risk_colors,
-        edgecolor="white",
-        linewidth=0.5
-    )
-
-    for bar, val in zip(bars, risk_values):
-        ax_risk.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.5,
-            f"{val:,}",
-            ha="center",
-            fontsize=9,
-            color=NEUTRAL_COLOR
+        bars = ax_risk.bar(
+            risk_labels,
+            risk_values,
+            color=risk_colors,
+            edgecolor="white",
+            linewidth=0.5
         )
 
-    ax_risk.set_ylabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
-    ax_risk.set_title("Risk Level Distribution", fontsize=11, color=NEUTRAL_COLOR)
-    ax_risk.spines["top"].set_visible(False)
-    ax_risk.spines["right"].set_visible(False)
-    ax_risk.tick_params(colors=NEUTRAL_COLOR)
-    plt.tight_layout()
-    st.pyplot(fig_risk)
+        for bar, val in zip(bars, risk_values):
+            ax_risk.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.5,
+                f"{val:,}",
+                ha="center",
+                fontsize=9,
+                color=NEUTRAL_COLOR
+            )
+
+        ax_risk.set_ylabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
+        ax_risk.set_title("Risk Level Distribution", fontsize=11, color=NEUTRAL_COLOR)
+        ax_risk.spines["top"].set_visible(False)
+        ax_risk.spines["right"].set_visible(False)
+        ax_risk.tick_params(colors=NEUTRAL_COLOR)
+        plt.tight_layout()
+        st.pyplot(fig_risk)
 
     st.markdown("---")
 
@@ -528,7 +528,7 @@ High Risk Flows      : {high_risk_count:,}
 
 RISK BREAKDOWN
 --------------
-Low Risk  (0-30)   : {low_risk:,} flows
+Low Risk  (0-30)    : {low_risk:,} flows
 Medium Risk (31-70) : {med_risk:,} flows
 High Risk (71-100)  : {high_risk:,} flows
 
