@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("Agg")
 import time
+from datetime import datetime
 
 # =========================
 # PAGE CONFIG
@@ -114,7 +115,6 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
 
-    # Detect file format and load
     file_name = uploaded_file.name.lower()
 
     if file_name.endswith(".csv"):
@@ -176,12 +176,11 @@ if uploaded_file is not None:
 
     df = df[EXPECTED_COLUMNS]
 
-    # Fix infinity and NaN
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.fillna(0)
 
     # =========================
-    # REAL-TIME PROGRESS BAR
+    # PROGRESS BAR
     # =========================
     st.markdown("---")
     st.subheader("Running Analysis...")
@@ -218,6 +217,42 @@ if uploaded_file is not None:
 
     df["Confidence"] = [f"{p*100:.1f}%" for p in max_proba]
 
+    # =========================
+    # RISK SCORE
+    # =========================
+    def compute_risk_score(prediction, confidence):
+        if prediction == "Normal Traffic":
+            base = 0
+        elif prediction == "Brute Force":
+            base = 60
+        elif prediction == "DDoS":
+            base = 85
+        elif prediction == "DoS":
+            base = 80
+        elif prediction == "Port Scanning":
+            base = 50
+        else:
+            base = 70
+        risk = base * confidence
+        return min(int(risk), 100)
+
+    risk_scores = [
+        compute_risk_score(label, conf)
+        for label, conf in zip(labels, max_proba)
+    ]
+
+    df["Risk Score"] = risk_scores
+
+    def risk_category(score):
+        if score <= 30:
+            return "Low"
+        elif score <= 70:
+            return "Medium"
+        else:
+            return "High"
+
+    df["Risk Level"] = df["Risk Score"].apply(risk_category)
+
     LOW_CONFIDENCE_THRESHOLD = 0.70
     low_confidence_count = (max_proba < LOW_CONFIDENCE_THRESHOLD).sum()
 
@@ -237,43 +272,45 @@ if uploaded_file is not None:
     normal_count = (df["Prediction"] == "Normal Traffic").sum()
     attack_count = len(df) - normal_count
     attack_percentage = (attack_count / len(df)) * 100
+    high_risk_count = (df["Risk Level"] == "High").sum()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Flows Analyzed", f"{len(df):,}")
     col2.metric("Normal Traffic", f"{normal_count:,}")
     col3.metric("Attacks Detected", f"{attack_count:,}")
+    col4.metric("High Risk Flows", f"{high_risk_count:,}")
 
     st.markdown("---")
 
     # =========================
-    # THREAT LEVEL INDICATOR
+    # THREAT LEVEL
     # =========================
     st.subheader("Threat Level")
 
     if attack_percentage == 0:
         threat_level = "SAFE"
         threat_class = "threat-safe"
-        threat_icon = "🟢"
+        threat_icon = "[SAFE]"
         threat_msg = "No threats detected. Network traffic appears normal."
     elif attack_percentage < 30:
         threat_level = "LOW"
         threat_class = "threat-warning"
-        threat_icon = "🟡"
+        threat_icon = "[LOW]"
         threat_msg = f"{attack_percentage:.1f}% of traffic flagged as suspicious. Monitor closely."
     elif attack_percentage < 60:
         threat_level = "WARNING"
         threat_class = "threat-warning"
-        threat_icon = "🟠"
+        threat_icon = "[WARNING]"
         threat_msg = f"{attack_percentage:.1f}% of traffic flagged as attacks. Investigation recommended."
     else:
         threat_level = "CRITICAL"
         threat_class = "threat-critical"
-        threat_icon = "🔴"
+        threat_icon = "[CRITICAL]"
         threat_msg = f"{attack_percentage:.1f}% of traffic identified as attacks. Immediate action required!"
 
     st.markdown(
         f'<div class="threat-box {threat_class}">'
-        f'{threat_icon} THREAT LEVEL: {threat_level}<br>'
+        f'THREAT LEVEL: {threat_level}<br>'
         f'<span style="font-size:14px; font-weight:normal;">{threat_msg}</span>'
         f'</div>',
         unsafe_allow_html=True
@@ -282,45 +319,71 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # ATTACK DISTRIBUTION CHART
+    # CHARTS — PIE + BAR
     # =========================
     st.subheader("Traffic Classification Distribution")
 
     prediction_counts = df["Prediction"].value_counts()
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    col_pie, col_bar = st.columns(2)
 
-    colors = []
-    for label in prediction_counts.index:
-        if label == "Normal Traffic":
-            colors.append("#4CAF50")
-        else:
-            colors.append("#E53935")
+    # Pie chart
+    with col_pie:
+        fig_pie, ax_pie = plt.subplots(figsize=(5, 4))
 
-    prediction_counts.plot(
-        kind="bar",
-        ax=ax,
-        color=colors,
-        edgecolor="white",
-        linewidth=0.5
-    )
+        pie_labels = prediction_counts.index.tolist()
+        pie_sizes = prediction_counts.values.tolist()
+        pie_colors = []
+        for label in pie_labels:
+            if label == "Normal Traffic":
+                pie_colors.append("#4CAF50")
+            else:
+                pie_colors.append("#E53935")
 
-    ax.set_ylabel("Number of Flows", fontsize=10)
-    ax.set_xlabel("")
-    ax.set_title("Prediction Distribution", fontsize=11)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    plt.xticks(rotation=30, fontsize=9)
-    plt.tight_layout()
+        ax_pie.pie(
+            pie_sizes,
+            labels=pie_labels,
+            colors=pie_colors,
+            autopct="%1.1f%%",
+            startangle=90,
+            textprops={"fontsize": 9}
+        )
+        ax_pie.set_title("Traffic Composition", fontsize=11)
+        plt.tight_layout()
+        st.pyplot(fig_pie)
 
-    col_chart, col_space = st.columns([2, 1])
-    with col_chart:
-        st.pyplot(fig)
+    # Bar chart
+    with col_bar:
+        fig_bar, ax_bar = plt.subplots(figsize=(5, 4))
+
+        bar_colors = []
+        for label in prediction_counts.index:
+            if label == "Normal Traffic":
+                bar_colors.append("#4CAF50")
+            else:
+                bar_colors.append("#E53935")
+
+        prediction_counts.plot(
+            kind="bar",
+            ax=ax_bar,
+            color=bar_colors,
+            edgecolor="white",
+            linewidth=0.5
+        )
+
+        ax_bar.set_ylabel("Number of Flows", fontsize=10)
+        ax_bar.set_xlabel("")
+        ax_bar.set_title("Prediction Distribution", fontsize=11)
+        ax_bar.spines["top"].set_visible(False)
+        ax_bar.spines["right"].set_visible(False)
+        plt.xticks(rotation=30, fontsize=9)
+        plt.tight_layout()
+        st.pyplot(fig_bar)
 
     st.markdown("---")
 
     # =========================
-    # SECURITY SUMMARY
+    # SECURITY ASSESSMENT
     # =========================
     st.subheader("Security Assessment")
 
@@ -361,10 +424,146 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # DETAILED RESULTS TABLE
+    # RISK SCORE DISTRIBUTION
+    # =========================
+    st.subheader("Risk Score Distribution")
+
+    risk_counts = df["Risk Level"].value_counts()
+    risk_col1, risk_col2, risk_col3 = st.columns(3)
+
+    low_risk = (df["Risk Level"] == "Low").sum()
+    med_risk = (df["Risk Level"] == "Medium").sum()
+    high_risk = (df["Risk Level"] == "High").sum()
+
+    risk_col1.metric("Low Risk (0-30)", f"{low_risk:,}")
+    risk_col2.metric("Medium Risk (31-70)", f"{med_risk:,}")
+    risk_col3.metric("High Risk (71-100)", f"{high_risk:,}")
+
+    st.markdown("---")
+
+    # =========================
+    # FILTER + DETAILED TABLE
     # =========================
     st.subheader("Detailed Flow Analysis")
-    st.dataframe(df, use_container_width=True)
+
+    all_types = ["All"] + sorted(df["Prediction"].unique().tolist())
+    selected_type = st.selectbox("Filter by attack type:", all_types)
+
+    all_risk_levels = ["All", "Low", "Medium", "High"]
+    selected_risk = st.selectbox("Filter by risk level:", all_risk_levels)
+
+    filtered_df = df.copy()
+
+    if selected_type != "All":
+        filtered_df = filtered_df[filtered_df["Prediction"] == selected_type]
+
+    if selected_risk != "All":
+        filtered_df = filtered_df[filtered_df["Risk Level"] == selected_risk]
+
+    st.write(f"Showing {len(filtered_df):,} of {len(df):,} connections")
+    st.dataframe(filtered_df, use_container_width=True)
+
+    st.markdown("---")
+
+    # =========================
+    # DOWNLOAD REPORT
+    # =========================
+    st.subheader("Download Incident Report")
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    report_text = f"""
+============================================================
+       AI-IDS SECURITY INCIDENT REPORT
+============================================================
+Generated     : {now}
+File Analyzed : {uploaded_file.name}
+------------------------------------------------------------
+
+EXECUTIVE SUMMARY
+-----------------
+Total Flows Analyzed : {len(df):,}
+Normal Traffic       : {normal_count:,}
+Attacks Detected     : {attack_count:,}
+Attack Percentage    : {attack_percentage:.1f}%
+Threat Level         : {threat_level}
+High Risk Flows      : {high_risk_count:,}
+
+RISK BREAKDOWN
+--------------
+Low Risk  (0-30)  : {low_risk:,} flows
+Medium Risk (31-70): {med_risk:,} flows
+High Risk (71-100) : {high_risk:,} flows
+
+LOW CONFIDENCE FLAGS
+--------------------
+Predictions below 70% confidence : {low_confidence_count}
+Manual review recommended        : {"Yes" if low_confidence_count > 0 else "No"}
+
+ATTACK BREAKDOWN
+----------------
+"""
+
+    if attack_count > 0:
+        attack_counts = df[df["Prediction"] != "Normal Traffic"]["Prediction"].value_counts()
+        for attack_type, count in attack_counts.items():
+            report_text += f"{attack_type:<25} : {count:,} flows\n"
+    else:
+        report_text += "No attacks detected.\n"
+
+    report_text += """
+------------------------------------------------------------
+RECOMMENDATIONS
+---------------
+"""
+    if threat_level == "SAFE":
+        report_text += "- Network traffic appears normal. Continue routine monitoring.\n"
+    elif threat_level == "LOW":
+        report_text += "- Low level of suspicious traffic detected. Monitor closely.\n"
+        report_text += "- Review flagged connections in the detailed table.\n"
+    elif threat_level == "WARNING":
+        report_text += "- Significant attack traffic detected. Investigate immediately.\n"
+        report_text += "- Consider blocking suspicious source IPs.\n"
+        report_text += "- Review all low-confidence predictions manually.\n"
+    else:
+        report_text += "- CRITICAL: Majority of traffic is malicious. Immediate action required.\n"
+        report_text += "- Isolate affected network segments immediately.\n"
+        report_text += "- Contact security team and escalate to incident response.\n"
+        report_text += "- Preserve logs for forensic analysis.\n"
+
+    report_text += f"""
+------------------------------------------------------------
+SYSTEM INFORMATION
+------------------
+Model          : Random Forest (500 trees)
+Training Data  : CICIDS2017 (69,150 samples)
+Test Accuracy  : 99.83%
+NSL-KDD Valid. : 98.62%
+Dashboard      : https://ai-ids-baaza.streamlit.app
+GitHub         : https://github.com/baazaidriss/AI-IDS
+============================================================
+        AI-IDS — BAAZA Idriss — 2025/2026
+============================================================
+"""
+
+    col_dl1, col_dl2 = st.columns(2)
+
+    with col_dl1:
+        st.download_button(
+            label="Download Text Report",
+            data=report_text,
+            file_name=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            mime="text/plain"
+        )
+
+    with col_dl2:
+        csv_report = df.to_csv(index=False)
+        st.download_button(
+            label="Download Full Results (CSV)",
+            data=csv_report,
+            file_name=f"AI-IDS_Results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
 
     # =========================
     # FOOTER
