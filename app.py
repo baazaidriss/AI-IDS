@@ -9,6 +9,13 @@ import time
 from datetime import datetime
 
 # =========================
+# COLOR PALETTE
+# =========================
+NORMAL_COLOR = "#4a7c59"
+ATTACK_COLOR = "#c0392b"
+NEUTRAL_COLOR = "#2c3e50"
+
+# =========================
 # PAGE CONFIG
 # =========================
 st.set_page_config(
@@ -24,14 +31,19 @@ st.markdown("""
     <style>
         .main { background-color: #f4f6f9; }
         h1 {
-            color: #1a1a2e;
+            color: #2c3e50;
             font-size: 28px;
             font-weight: 700;
             border-bottom: 2px solid #e0e0e0;
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
-        h2, h3 { color: #16213e; font-size: 18px; font-weight: 600; margin-top: 20px; }
+        h2, h3 {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 20px;
+        }
         div[data-testid="metric-container"] {
             background-color: #ffffff;
             border: 1px solid #e0e0e0;
@@ -65,19 +77,24 @@ st.markdown("""
             margin-bottom: 20px;
         }
         .threat-safe {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            border: 2px solid #4CAF50;
+            background-color: #eaf4ee;
+            color: #2d6a4f;
+            border: 2px solid #4a7c59;
+        }
+        .threat-low {
+            background-color: #fef9e7;
+            color: #7d6608;
+            border: 2px solid #d4ac0d;
         }
         .threat-warning {
-            background-color: #fff8e1;
-            color: #f57f17;
-            border: 2px solid #FFC107;
+            background-color: #fdf2e9;
+            color: #784212;
+            border: 2px solid #ca6f1e;
         }
         .threat-critical {
-            background-color: #ffebee;
-            color: #b71c1c;
-            border: 2px solid #E53935;
+            background-color: #fdedec;
+            color: #922b21;
+            border: 2px solid #c0392b;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -290,22 +307,18 @@ if uploaded_file is not None:
     if attack_percentage == 0:
         threat_level = "SAFE"
         threat_class = "threat-safe"
-        threat_icon = "[SAFE]"
         threat_msg = "No threats detected. Network traffic appears normal."
     elif attack_percentage < 30:
         threat_level = "LOW"
-        threat_class = "threat-warning"
-        threat_icon = "[LOW]"
+        threat_class = "threat-low"
         threat_msg = f"{attack_percentage:.1f}% of traffic flagged as suspicious. Monitor closely."
     elif attack_percentage < 60:
         threat_level = "WARNING"
         threat_class = "threat-warning"
-        threat_icon = "[WARNING]"
         threat_msg = f"{attack_percentage:.1f}% of traffic flagged as attacks. Investigation recommended."
     else:
         threat_level = "CRITICAL"
         threat_class = "threat-critical"
-        threat_icon = "[CRITICAL]"
         threat_msg = f"{attack_percentage:.1f}% of traffic identified as attacks. Immediate action required!"
 
     st.markdown(
@@ -325,20 +338,19 @@ if uploaded_file is not None:
 
     prediction_counts = df["Prediction"].value_counts()
 
+    def get_color(label):
+        if label == "Normal Traffic":
+            return NORMAL_COLOR
+        else:
+            return ATTACK_COLOR
+
     col_pie, col_bar = st.columns(2)
 
-    # Pie chart
     with col_pie:
-        fig_pie, ax_pie = plt.subplots(figsize=(5, 4))
-
+        fig_pie, ax_pie = plt.subplots(figsize=(5, 3))
         pie_labels = prediction_counts.index.tolist()
         pie_sizes = prediction_counts.values.tolist()
-        pie_colors = []
-        for label in pie_labels:
-            if label == "Normal Traffic":
-                pie_colors.append("#4CAF50")
-            else:
-                pie_colors.append("#E53935")
+        pie_colors = [get_color(l) for l in pie_labels]
 
         ax_pie.pie(
             pie_sizes,
@@ -346,22 +358,15 @@ if uploaded_file is not None:
             colors=pie_colors,
             autopct="%1.1f%%",
             startangle=90,
-            textprops={"fontsize": 9}
+            textprops={"fontsize": 9, "color": NEUTRAL_COLOR}
         )
-        ax_pie.set_title("Traffic Composition", fontsize=11)
+        ax_pie.set_title("Traffic Composition", fontsize=11, color=NEUTRAL_COLOR)
         plt.tight_layout()
         st.pyplot(fig_pie)
 
-    # Bar chart
     with col_bar:
-        fig_bar, ax_bar = plt.subplots(figsize=(5, 4))
-
-        bar_colors = []
-        for label in prediction_counts.index:
-            if label == "Normal Traffic":
-                bar_colors.append("#4CAF50")
-            else:
-                bar_colors.append("#E53935")
+        fig_bar, ax_bar = plt.subplots(figsize=(5, 3))
+        bar_colors = [get_color(l) for l in prediction_counts.index]
 
         prediction_counts.plot(
             kind="bar",
@@ -371,11 +376,12 @@ if uploaded_file is not None:
             linewidth=0.5
         )
 
-        ax_bar.set_ylabel("Number of Flows", fontsize=10)
+        ax_bar.set_ylabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
         ax_bar.set_xlabel("")
-        ax_bar.set_title("Prediction Distribution", fontsize=11)
+        ax_bar.set_title("Prediction Distribution", fontsize=11, color=NEUTRAL_COLOR)
         ax_bar.spines["top"].set_visible(False)
         ax_bar.spines["right"].set_visible(False)
+        ax_bar.tick_params(colors=NEUTRAL_COLOR)
         plt.xticks(rotation=30, fontsize=9)
         plt.tight_layout()
         st.pyplot(fig_bar)
@@ -406,15 +412,16 @@ if uploaded_file is not None:
         attack_df.plot(
             kind="barh",
             ax=ax2,
-            color="#E53935",
+            color=ATTACK_COLOR,
             edgecolor="white"
         )
 
-        ax2.set_xlabel("Number of Flows", fontsize=10)
+        ax2.set_xlabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
         ax2.set_ylabel("")
-        ax2.set_title("Detected Attack Types", fontsize=11)
+        ax2.set_title("Detected Attack Types", fontsize=11, color=NEUTRAL_COLOR)
         ax2.spines["top"].set_visible(False)
         ax2.spines["right"].set_visible(False)
+        ax2.tick_params(colors=NEUTRAL_COLOR)
         plt.tight_layout()
 
         col_chart2, col_space2 = st.columns([2, 1])
@@ -428,16 +435,46 @@ if uploaded_file is not None:
     # =========================
     st.subheader("Risk Score Distribution")
 
-    risk_counts = df["Risk Level"].value_counts()
-    risk_col1, risk_col2, risk_col3 = st.columns(3)
-
     low_risk = (df["Risk Level"] == "Low").sum()
     med_risk = (df["Risk Level"] == "Medium").sum()
     high_risk = (df["Risk Level"] == "High").sum()
 
+    risk_col1, risk_col2, risk_col3 = st.columns(3)
     risk_col1.metric("Low Risk (0-30)", f"{low_risk:,}")
     risk_col2.metric("Medium Risk (31-70)", f"{med_risk:,}")
     risk_col3.metric("High Risk (71-100)", f"{high_risk:,}")
+
+    fig_risk, ax_risk = plt.subplots(figsize=(6, 3))
+
+    risk_labels = ["Low (0-30)", "Medium (31-70)", "High (71-100)"]
+    risk_values = [low_risk, med_risk, high_risk]
+    risk_colors = [NORMAL_COLOR, "#ca6f1e", ATTACK_COLOR]
+
+    bars = ax_risk.bar(
+        risk_labels,
+        risk_values,
+        color=risk_colors,
+        edgecolor="white",
+        linewidth=0.5
+    )
+
+    for bar, val in zip(bars, risk_values):
+        ax_risk.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.5,
+            f"{val:,}",
+            ha="center",
+            fontsize=9,
+            color=NEUTRAL_COLOR
+        )
+
+    ax_risk.set_ylabel("Number of Flows", fontsize=10, color=NEUTRAL_COLOR)
+    ax_risk.set_title("Risk Level Distribution", fontsize=11, color=NEUTRAL_COLOR)
+    ax_risk.spines["top"].set_visible(False)
+    ax_risk.spines["right"].set_visible(False)
+    ax_risk.tick_params(colors=NEUTRAL_COLOR)
+    plt.tight_layout()
+    st.pyplot(fig_risk)
 
     st.markdown("---")
 
@@ -491,9 +528,9 @@ High Risk Flows      : {high_risk_count:,}
 
 RISK BREAKDOWN
 --------------
-Low Risk  (0-30)  : {low_risk:,} flows
-Medium Risk (31-70): {med_risk:,} flows
-High Risk (71-100) : {high_risk:,} flows
+Low Risk  (0-30)   : {low_risk:,} flows
+Medium Risk (31-70) : {med_risk:,} flows
+High Risk (71-100)  : {high_risk:,} flows
 
 LOW CONFIDENCE FLAGS
 --------------------
