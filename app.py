@@ -366,7 +366,7 @@ if uploaded_file is not None:
         st.pyplot(fig_pie)
 
     with col_bar:
-        fig_bar, ax_bar = plt.subplots(figsize=CHART_SIZE)
+        fig_bar, ax_bar = plt.subplots(figsize=(5, 2.5))
         bar_colors = [get_color(l) for l in prediction_counts.index]
 
         prediction_counts.plot(
