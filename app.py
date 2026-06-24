@@ -686,7 +686,8 @@ if uploaded_file is not None:
             ax_div_p2.axhline(0, color=ATTACK_COLOR, linewidth=2)
             ax_div_p2.axis("off")
 
-            ax_pie2 = fig2.add_subplot(2, 2, 1)
+            # Chart 1 — Pie
+            ax_pie2 = fig2.add_axes([0.1, 0.72, 0.8, 0.22])
             ax_pie2.set_facecolor("white")
             pie_colors2 = [get_color(l) for l in prediction_counts.index]
             short_labels2 = [
@@ -699,32 +700,50 @@ if uploaded_file is not None:
                 autopct="%1.1f%%",
                 startangle=90,
                 labels=short_labels2,
-                textprops={"fontsize": 7, "color": "#2c3e50"}
+                textprops={"fontsize": 8, "color": "#2c3e50"}
             )
             for at in autotexts2:
                 at.set_color("#2c3e50")
             ax_pie2.set_title("Traffic Composition",
-                              fontsize=10, color="#2c3e50")
+                              fontsize=11, color="#2c3e50", pad=8)
 
-            ax_bar2 = fig2.add_subplot(2, 2, 2)
+            fig2.text(0.5, 0.71,
+                      "Distribution of normal vs attack traffic in the uploaded file.",
+                      ha="center", fontsize=8, color="gray", style="italic")
+
+            ax_div_c1 = fig2.add_axes([0.05, 0.695, 0.9, 0.002])
+            ax_div_c1.axhline(0, color="#dddddd", linewidth=1)
+            ax_div_c1.axis("off")
+
+            # Chart 2 — Bar
+            ax_bar2 = fig2.add_axes([0.1, 0.49, 0.8, 0.19])
             ax_bar2.set_facecolor("white")
             bar_colors2 = [get_color(l) for l in prediction_counts.index]
             prediction_counts.plot(kind="bar", ax=ax_bar2,
                                    color=bar_colors2, edgecolor="none")
             ax_bar2.set_title("Prediction Distribution",
-                              fontsize=10, color="#2c3e50")
+                              fontsize=11, color="#2c3e50")
             ax_bar2.set_ylabel("Number of Flows",
                                fontsize=8, color="#2c3e50")
             ax_bar2.spines["top"].set_visible(False)
             ax_bar2.spines["right"].set_visible(False)
             ax_bar2.spines["left"].set_color("#dddddd")
             ax_bar2.spines["bottom"].set_color("#dddddd")
-            ax_bar2.tick_params(colors="#2c3e50", labelsize=7)
+            ax_bar2.tick_params(colors="#2c3e50", labelsize=8)
             plt.setp(ax_bar2.xaxis.get_majorticklabels(),
-                     rotation=30, fontsize=7)
+                     rotation=30, fontsize=8)
 
+            fig2.text(0.5, 0.475,
+                      "Number of flows per predicted class. Green = normal, Red = attack.",
+                      ha="center", fontsize=8, color="gray", style="italic")
+
+            ax_div_c2 = fig2.add_axes([0.05, 0.455, 0.9, 0.002])
+            ax_div_c2.axhline(0, color="#dddddd", linewidth=1)
+            ax_div_c2.axis("off")
+
+            # Chart 3 — Attack Breakdown or Risk
             if attack_count > 0:
-                ax_attack2 = fig2.add_subplot(2, 2, 3)
+                ax_attack2 = fig2.add_axes([0.1, 0.265, 0.8, 0.17])
                 ax_attack2.set_facecolor("white")
                 attack_df2 = df[
                     df["Prediction"] != "Normal Traffic"
@@ -732,36 +751,48 @@ if uploaded_file is not None:
                 attack_df2.plot(kind="barh", ax=ax_attack2,
                                 color=ATTACK_COLOR, edgecolor="none")
                 ax_attack2.set_title("Attack Type Breakdown",
-                                     fontsize=10, color="#2c3e50")
+                                     fontsize=11, color="#2c3e50")
                 ax_attack2.set_xlabel("Number of Flows",
                                       fontsize=8, color="#2c3e50")
                 ax_attack2.spines["top"].set_visible(False)
                 ax_attack2.spines["right"].set_visible(False)
                 ax_attack2.spines["left"].set_color("#dddddd")
                 ax_attack2.spines["bottom"].set_color("#dddddd")
-                ax_attack2.tick_params(colors="#2c3e50", labelsize=7)
+                ax_attack2.tick_params(colors="#2c3e50", labelsize=8)
 
-            ax_risk2 = fig2.add_subplot(2, 2, 4)
+                fig2.text(0.5, 0.248,
+                          "Number of detected flows per attack category.",
+                          ha="center", fontsize=8, color="gray", style="italic")
+
+                ax_div_c3 = fig2.add_axes([0.05, 0.23, 0.9, 0.002])
+                ax_div_c3.axhline(0, color="#dddddd", linewidth=1)
+                ax_div_c3.axis("off")
+
+            # Chart 4 — Risk Distribution
+            ax_risk2 = fig2.add_axes([0.1, 0.07, 0.8, 0.15])
             ax_risk2.set_facecolor("white")
-            ax_risk2.bar(["Low", "Medium", "High"],
+            ax_risk2.bar(["Low (0-30)", "Medium (31-70)", "High (71-100)"],
                          [low_risk, med_risk, high_risk],
                          color=[NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR],
                          edgecolor="none")
             ax_risk2.set_title("Risk Level Distribution",
-                               fontsize=10, color="#2c3e50")
+                               fontsize=11, color="#2c3e50")
             ax_risk2.set_ylabel("Number of Flows",
                                 fontsize=8, color="#2c3e50")
             ax_risk2.spines["top"].set_visible(False)
             ax_risk2.spines["right"].set_visible(False)
             ax_risk2.spines["left"].set_color("#dddddd")
             ax_risk2.spines["bottom"].set_color("#dddddd")
-            ax_risk2.tick_params(colors="#2c3e50", labelsize=7)
+            ax_risk2.tick_params(colors="#2c3e50", labelsize=8)
+
+            fig2.text(0.5, 0.055,
+                      "Risk score distribution: Low (0-30), Medium (31-70), High (71-100).",
+                      ha="center", fontsize=8, color="gray", style="italic")
 
             fig2.text(0.5, 0.02,
                       "AI-IDS — BAAZA Idriss — 2025/2026",
                       ha="center", fontsize=8, color="gray")
 
-            plt.tight_layout(rect=[0, 0.04, 1, 0.94])
             pdf.savefig(fig2, bbox_inches="tight")
             plt.close(fig2)
 
