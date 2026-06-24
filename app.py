@@ -623,15 +623,25 @@ if uploaded_file is not None:
 
             # System info
             y = section_title(fig1, y, "SYSTEM INFORMATION")
-            y = row(fig1, y, "Model", "Random Forest (500 trees)")
-            y = row(fig1, y, "Training Dataset", "CICIDS2017 — 69,150 samples")
-            y = row(fig1, y, "Test Accuracy", "99.83%")
-            y = row(fig1, y, "NSL-KDD Validation", "98.62%")
-            y = row(fig1, y, "Dashboard URL", "https://ai-ids-baaza.streamlit.app")
-            y = row(fig1, y, "GitHub", "https://github.com/baazaidriss/AI-IDS")
+            fig1.text(0.08, y, "Model", fontsize=9, color="#444444")
+            fig1.text(0.6, y, "Random Forest (500 trees)", fontsize=9, color="#2c3e50")
+            y -= 0.025
+            fig1.text(0.08, y, "Training Dataset", fontsize=9, color="#444444")
+            fig1.text(0.6, y, "CICIDS2017 — 69,150 samples", fontsize=9, color="#2c3e50")
+            y -= 0.025
+            fig1.text(0.08, y, "Test Accuracy", fontsize=9, color="#444444")
+            fig1.text(0.6, y, "99.83%", fontsize=9, color="#2c3e50")
+            y -= 0.025
+            fig1.text(0.08, y, "NSL-KDD Validation", fontsize=9, color="#444444")
+            fig1.text(0.6, y, "98.62%", fontsize=9, color="#2c3e50")
+            y -= 0.025
+            fig1.text(0.08, y, "Dashboard", fontsize=9, color="#444444")
+            fig1.text(0.6, y, "https://ai-ids-baaza.streamlit.app", fontsize=9, color="#2c3e50")
+            y -= 0.025
+            
 
-            fig1.text(0.5, 0.02, "AI-IDS — BAAZA Idriss — 2025/2026",
-                      ha="center", fontsize=8, color="gray")
+            fig1.text(0.5, 0.01, "AI-IDS — BAAZA Idriss — 2025/2026",
+                      ha="center", fontsize=7, color="gray")
 
             pdf.savefig(fig1, bbox_inches="tight")
             plt.close(fig1)
