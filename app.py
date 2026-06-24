@@ -158,6 +158,17 @@ st.markdown("---")
 with st.expander("View required column names"):
     st.write(EXPECTED_COLUMNS)
 
+
+# =========================
+# EMAIL INPUT
+# =========================
+st.subheader("Security Alert Notification")
+st.markdown("Enter your email to receive an automatic security alert after the analysis completes.")
+recipient_email = st.text_input("Your email address:", placeholder="example@email.com")
+
+st.markdown("---")
+
+
 # =========================
 # FILE UPLOAD
 # =========================
