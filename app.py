@@ -519,7 +519,7 @@ if uploaded_file is not None:
             # ============================
             # PAGE 1 — SUMMARY
             # ============================
-            fig1, axes1 = plt.subplots(figsize=(8.27, 11.69))
+            fig1, axes1 = plt.subplots(figsize=(10.27, 11.69))
             fig1.patch.set_facecolor("white")
             axes1.axis("off")
 
@@ -639,9 +639,6 @@ if uploaded_file is not None:
             fig1.text(0.6, y, "https://ai-ids-baaza.streamlit.app", fontsize=9, color="#2c3e50")
             y -= 0.025
             
-
-            fig1.text(0.5, 0.01, "AI-IDS — BAAZA Idriss — 2025/2026",
-                      ha="center", fontsize=7, color="gray")
 
             pdf.savefig(fig1, bbox_inches="tight")
             plt.close(fig1)
