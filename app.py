@@ -922,34 +922,65 @@ if uploaded_file is not None:
 
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-            system_prompt = f"""You are an expert cybersecurity analyst assistant integrated into an AI-powered Intrusion Detection System dashboard called AI-IDS.
+            system_prompt = f"""You are an expert cybersecurity analyst assistant integrated into an AI-powered Intrusion Detection System dashboard called AI-IDS. You have full access to all the data currently displayed on the dashboard and can answer questions about any chart, table, metric, or result shown.
 
-Here is the current analysis context:
+=== DASHBOARD SUMMARY ===
 - File analyzed: {uploaded_file.name}
 - Total flows analyzed: {len(df):,}
 - Normal Traffic: {normal_count:,} ({100 - attack_percentage:.1f}%)
 - Attacks Detected: {attack_count:,} ({attack_percentage:.1f}%)
 - Threat Level: {threat_level}
+- Threat Message: {threat_msg}
 - High Risk Flows: {high_risk_count:,}
 - Low Risk Flows: {low_risk:,}
 - Medium Risk Flows: {med_risk:,}
+- Low Confidence Flags: {low_confidence_count}
+
+=== MODEL INFORMATION ===
 - Model Used: Random Forest (500 trees)
 - Training Dataset: CICIDS2017 (69,150 samples)
-- Model Accuracy: 99.83%
-- NSL-KDD Validation: 98.62%
+- Test Accuracy: 99.83%
+- NSL-KDD Cross-Dataset Validation: 98.62%
+- Features used: 43 network flow features
+- Attack categories detected: DDoS, DoS, Brute Force, Port Scanning, Normal Traffic
 
-Attack breakdown:
+=== TRAFFIC CLASSIFICATION DISTRIBUTION (PIE + BAR CHART) ===
+{df['Prediction'].value_counts().to_string()}
+
+=== ATTACK TYPE BREAKDOWN (HORIZONTAL BAR CHART) ===
 {df[df['Prediction'] != 'Normal Traffic']['Prediction'].value_counts().to_string() if attack_count > 0 else 'No attacks detected'}
 
+=== RISK SCORE DISTRIBUTION (BAR CHART) ===
+- Low Risk (0-30): {low_risk:,} flows
+- Medium Risk (31-70): {med_risk:,} flows
+- High Risk (71-100): {high_risk:,} flows
+
+Risk scores are computed from the model confidence and attack type:
+- Normal Traffic: base score 0
+- Port Scanning: base score 50
+- Brute Force: base score 60
+- DoS: base score 80
+- DDoS: base score 85
+Final risk score = base score x confidence (capped at 100)
+
+=== DETAILED FLOW ANALYSIS TABLE (SAMPLE - FIRST 20 ROWS) ===
+{df[['Prediction', 'Confidence', 'Risk Score', 'Risk Level']].head(20).to_string()}
+
+=== FULL FEATURE STATISTICS ===
+{df.drop(columns=['Confidence']).describe().round(2).to_string()}
+
 You can answer questions about:
-- The current analysis results and what they mean
-- Definitions and explanations of attack types (DDoS, DoS, Brute Force, Port Scanning)
+- Any specific row or value in the detailed flow analysis table
+- Any chart shown on the dashboard (pie chart, bar chart, attack breakdown, risk distribution)
+- The meaning of any metric or feature
+- Why specific flows have unusual values
+- Definitions and explanations of attack types
 - Cybersecurity concepts and best practices
-- How the AI-IDS model works
-- What actions to take based on the results
+- How the Random Forest model works and why it was chosen
+- What actions to take based on the analysis results
 - Any general cybersecurity question
 
-Be clear, professional, and concise. Always relate your answers to the context when relevant."""
+Be clear, professional, and concise. When answering about specific rows or values, refer to the actual data provided above."""
 
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
