@@ -977,7 +977,9 @@ AI-IDS — BAAZA Idriss — 2025/2026
 
                 msg.attach(MIMEText(email_body, "plain"))
 
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                    server.ehlo()
+                    server.starttls()
                     server.login(sender_email, sender_password)
                     server.sendmail(sender_email, recipient_email, msg.as_string())
 
