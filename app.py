@@ -956,7 +956,7 @@ Be clear, professional, and concise. Always relate your answers to the context w
                     {"role": "system", "content": system_prompt},
                     *st.session_state.chat_history
                 ],
-                max_tokens=500,
+                max_tokens=1024,
                 temperature=0.7
             )
 
