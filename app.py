@@ -951,7 +951,7 @@ You can answer questions about:
 Be clear, professional, and concise. Always relate your answers to the context when relevant."""
 
             response = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     *st.session_state.chat_history
