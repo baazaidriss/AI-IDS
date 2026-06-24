@@ -517,20 +517,20 @@ if uploaded_file is not None:
         with PdfPages(pdf_buffer) as pdf:
 
             # ---- PAGE 1: SUMMARY ----
-            fig = plt.figure(figsize=(11, 8.5))
+            fig = plt.figure(figsize=(8.5, 11))
             fig.patch.set_facecolor("white")
 
-            fig.text(0.5, 0.95, "AI-IDS SECURITY INCIDENT REPORT",
-                     ha="center", va="top", fontsize=18,
+            fig.text(0.5, 0.96, "AI-IDS SECURITY INCIDENT REPORT",
+                     ha="center", fontsize=16,
                      fontweight="bold", color="#2c3e50")
 
-            fig.text(0.5, 0.91,
+            fig.text(0.5, 0.93,
                      f"Generated: {now}   |   File: {uploaded_file.name}",
-                     ha="center", va="top", fontsize=10, color="gray")
+                     ha="center", fontsize=9, color="gray")
 
-            ax_line = fig.add_axes([0.05, 0.89, 0.9, 0.005])
-            ax_line.axhline(0, color=ATTACK_COLOR, linewidth=2)
-            ax_line.axis("off")
+            ax_div = fig.add_axes([0.05, 0.915, 0.9, 0.003])
+            ax_div.axhline(0, color=ATTACK_COLOR, linewidth=2)
+            ax_div.axis("off")
 
             threat_color_map = {
                 "SAFE": "#52796f",
@@ -540,16 +540,21 @@ if uploaded_file is not None:
             }
             tcolor = threat_color_map.get(threat_level, "#2c3e50")
 
-            fig.text(0.5, 0.84, f"THREAT LEVEL: {threat_level}",
-                     ha="center", va="top", fontsize=16,
+            fig.text(0.5, 0.89, f"THREAT LEVEL: {threat_level}",
+                     ha="center", fontsize=14,
                      fontweight="bold", color=tcolor)
 
-            fig.text(0.5, 0.80, threat_msg,
-                     ha="center", va="top", fontsize=10, color="#2c3e50")
+            fig.text(0.5, 0.865, threat_msg,
+                     ha="center", fontsize=9, color="#2c3e50")
 
-            ax_line2 = fig.add_axes([0.05, 0.77, 0.9, 0.005])
-            ax_line2.axhline(0, color="#e0e0e0", linewidth=1)
-            ax_line2.axis("off")
+            ax_div2 = fig.add_axes([0.05, 0.85, 0.9, 0.003])
+            ax_div2.axhline(0, color="#dddddd", linewidth=1)
+            ax_div2.axis("off")
+
+            y = 0.82
+            fig.text(0.05, y, "EXECUTIVE SUMMARY",
+                     fontsize=11, fontweight="bold", color="#2c3e50")
+            y -= 0.03
 
             summary_data = [
                 ["Total Flows Analyzed", f"{len(df):,}"],
@@ -559,70 +564,65 @@ if uploaded_file is not None:
                 ["High Risk Flows", f"{high_risk_count:,}"],
                 ["Low Confidence Flags", f"{low_confidence_count}"],
             ]
-
-            y_pos = 0.73
-            fig.text(0.05, y_pos + 0.03, "EXECUTIVE SUMMARY",
-                     fontsize=12, fontweight="bold", color="#2c3e50")
-
             for label, value in summary_data:
-                fig.text(0.08, y_pos, label, fontsize=10, color="#2c3e50")
-                fig.text(0.55, y_pos, value, fontsize=10,
+                fig.text(0.08, y, label, fontsize=9, color="#444444")
+                fig.text(0.55, y, value, fontsize=9,
                          fontweight="bold", color="#2c3e50")
-                y_pos -= 0.05
+                y -= 0.03
 
-            ax_line3 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
-            ax_line3.axhline(0, color="#e0e0e0", linewidth=1)
-            ax_line3.axis("off")
-            y_pos -= 0.02
+            y -= 0.01
+            ax_div3 = fig.add_axes([0.05, y + 0.015, 0.9, 0.003])
+            ax_div3.axhline(0, color="#dddddd", linewidth=1)
+            ax_div3.axis("off")
+            y -= 0.01
 
-            fig.text(0.05, y_pos + 0.01, "RISK BREAKDOWN",
-                     fontsize=12, fontweight="bold", color="#2c3e50")
-            y_pos -= 0.04
+            fig.text(0.05, y, "RISK BREAKDOWN",
+                     fontsize=11, fontweight="bold", color="#2c3e50")
+            y -= 0.03
 
-            risk_data = [
+            for label, value, color in [
                 ["Low Risk (0-30)", f"{low_risk:,} flows", "#52796f"],
                 ["Medium Risk (31-70)", f"{med_risk:,} flows", MEDIUM_COLOR],
                 ["High Risk (71-100)", f"{high_risk:,} flows", ATTACK_COLOR],
-            ]
-
-            for label, value, color in risk_data:
-                fig.text(0.08, y_pos, label, fontsize=10,
+            ]:
+                fig.text(0.08, y, label, fontsize=9,
                          color=color, fontweight="bold")
-                fig.text(0.55, y_pos, value, fontsize=10, color="#2c3e50")
-                y_pos -= 0.05
+                fig.text(0.55, y, value, fontsize=9, color="#444444")
+                y -= 0.03
 
-            ax_line4 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
-            ax_line4.axhline(0, color="#e0e0e0", linewidth=1)
-            ax_line4.axis("off")
-            y_pos -= 0.02
+            y -= 0.01
+            ax_div4 = fig.add_axes([0.05, y + 0.015, 0.9, 0.003])
+            ax_div4.axhline(0, color="#dddddd", linewidth=1)
+            ax_div4.axis("off")
+            y -= 0.01
 
-            fig.text(0.05, y_pos + 0.01, "ATTACK BREAKDOWN",
-                     fontsize=12, fontweight="bold", color="#2c3e50")
-            y_pos -= 0.04
+            fig.text(0.05, y, "ATTACK BREAKDOWN",
+                     fontsize=11, fontweight="bold", color="#2c3e50")
+            y -= 0.03
 
             if attack_count > 0:
-                attack_counts_pdf = df[
+                for attack_type, count in df[
                     df["Prediction"] != "Normal Traffic"
-                ]["Prediction"].value_counts()
-                for attack_type, count in attack_counts_pdf.items():
-                    fig.text(0.08, y_pos, attack_type,
-                             fontsize=10, color=ATTACK_COLOR)
-                    fig.text(0.55, y_pos, f"{count:,} flows",
-                             fontsize=10, color="#2c3e50")
-                    y_pos -= 0.05
+                ]["Prediction"].value_counts().items():
+                    fig.text(0.08, y, attack_type,
+                             fontsize=9, color=ATTACK_COLOR)
+                    fig.text(0.55, y, f"{count:,} flows",
+                             fontsize=9, color="#444444")
+                    y -= 0.03
             else:
-                fig.text(0.08, y_pos, "No attacks detected.",
-                         fontsize=10, color="#52796f")
-                y_pos -= 0.05
+                fig.text(0.08, y, "No attacks detected.",
+                         fontsize=9, color="#52796f")
+                y -= 0.03
 
-            ax_line5 = fig.add_axes([0.05, y_pos + 0.02, 0.9, 0.005])
-            ax_line5.axhline(0, color="#e0e0e0", linewidth=1)
-            ax_line5.axis("off")
-            y_pos -= 0.02
+            y -= 0.01
+            ax_div5 = fig.add_axes([0.05, y + 0.015, 0.9, 0.003])
+            ax_div5.axhline(0, color="#dddddd", linewidth=1)
+            ax_div5.axis("off")
+            y -= 0.01
 
-            fig.text(0.05, y_pos + 0.01, "RECOMMENDATIONS",
-                     fontsize=12, fontweight="bold", color="#2c3e50")
-            y_pos -= 0.04
+            fig.text(0.05, y, "RECOMMENDATIONS",
+                     fontsize=11, fontweight="bold", color="#2c3e50")
+            y -= 0.03
 
             if threat_level == "SAFE":
                 recs = ["Network traffic appears normal. Continue routine monitoring."]
@@ -640,29 +640,54 @@ if uploaded_file is not None:
                         "Preserve logs for forensic analysis."]
 
             for rec in recs:
-                fig.text(0.08, y_pos, f"- {rec}",
-                         fontsize=9, color="#2c3e50")
-                y_pos -= 0.04
+                fig.text(0.08, y, f"- {rec}",
+                         fontsize=9, color="#444444")
+                y -= 0.03
 
-            fig.text(
-                0.5, 0.02,
-                "AI-IDS — BAAZA Idriss — 2025/2026 | https://ai-ids-baaza.streamlit.app",
-                ha="center", fontsize=8, color="gray"
-            )
+            y -= 0.01
+            ax_div6 = fig.add_axes([0.05, y + 0.015, 0.9, 0.003])
+            ax_div6.axhline(0, color="#dddddd", linewidth=1)
+            ax_div6.axis("off")
+            y -= 0.01
+
+            fig.text(0.05, y, "SYSTEM INFORMATION",
+                     fontsize=11, fontweight="bold", color="#2c3e50")
+            y -= 0.03
+
+            sys_info = [
+                ["Model", "Random Forest (500 trees)"],
+                ["Training Data", "CICIDS2017 (69,150 samples)"],
+                ["Test Accuracy", "99.83%"],
+                ["NSL-KDD Validation", "98.62%"],
+                ["Dashboard", "https://ai-ids-baaza.streamlit.app"],
+                ["GitHub", "https://github.com/baazaidriss/AI-IDS"],
+            ]
+            for label, value in sys_info:
+                fig.text(0.08, y, label, fontsize=9, color="#444444")
+                fig.text(0.55, y, value, fontsize=9, color="#2c3e50")
+                y -= 0.03
+
+            fig.text(0.5, 0.02,
+                     "AI-IDS — BAAZA Idriss — 2025/2026",
+                     ha="center", fontsize=8, color="gray")
 
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
             # ---- PAGE 2: CHARTS ----
-            fig2 = plt.figure(figsize=(11, 8.5))
-            fig2.patch.set_facecolor(CHART_BG)
+            fig2 = plt.figure(figsize=(8.5, 11))
+            fig2.patch.set_facecolor("white")
 
             fig2.text(0.5, 0.97, "AI-IDS — Visual Analysis",
                       ha="center", fontsize=14,
-                      fontweight="bold", color=NEUTRAL_COLOR)
+                      fontweight="bold", color="#2c3e50")
+
+            ax_div_p2 = fig2.add_axes([0.05, 0.955, 0.9, 0.003])
+            ax_div_p2.axhline(0, color=ATTACK_COLOR, linewidth=2)
+            ax_div_p2.axis("off")
 
             ax_pie2 = fig2.add_subplot(2, 2, 1)
-            ax_pie2.set_facecolor(CHART_BG)
+            ax_pie2.set_facecolor("white")
             pie_colors2 = [get_color(l) for l in prediction_counts.index]
             short_labels2 = [
                 "Normal" if l == "Normal Traffic" else l
@@ -674,71 +699,69 @@ if uploaded_file is not None:
                 autopct="%1.1f%%",
                 startangle=90,
                 labels=short_labels2,
-                textprops={"fontsize": 7, "color": NEUTRAL_COLOR}
+                textprops={"fontsize": 7, "color": "#2c3e50"}
             )
             for at in autotexts2:
-                at.set_color(NEUTRAL_COLOR)
+                at.set_color("#2c3e50")
             ax_pie2.set_title("Traffic Composition",
-                              fontsize=10, color=NEUTRAL_COLOR)
+                              fontsize=10, color="#2c3e50")
 
             ax_bar2 = fig2.add_subplot(2, 2, 2)
-            ax_bar2.set_facecolor(CHART_BG)
+            ax_bar2.set_facecolor("white")
             bar_colors2 = [get_color(l) for l in prediction_counts.index]
             prediction_counts.plot(kind="bar", ax=ax_bar2,
                                    color=bar_colors2, edgecolor="none")
             ax_bar2.set_title("Prediction Distribution",
-                              fontsize=10, color=NEUTRAL_COLOR)
+                              fontsize=10, color="#2c3e50")
             ax_bar2.set_ylabel("Number of Flows",
-                               fontsize=8, color=NEUTRAL_COLOR)
+                               fontsize=8, color="#2c3e50")
             ax_bar2.spines["top"].set_visible(False)
             ax_bar2.spines["right"].set_visible(False)
-            ax_bar2.spines["left"].set_color(GRID_COLOR)
-            ax_bar2.spines["bottom"].set_color(GRID_COLOR)
-            ax_bar2.tick_params(colors=NEUTRAL_COLOR, labelsize=7)
+            ax_bar2.spines["left"].set_color("#dddddd")
+            ax_bar2.spines["bottom"].set_color("#dddddd")
+            ax_bar2.tick_params(colors="#2c3e50", labelsize=7)
             plt.setp(ax_bar2.xaxis.get_majorticklabels(),
                      rotation=30, fontsize=7)
 
             if attack_count > 0:
                 ax_attack2 = fig2.add_subplot(2, 2, 3)
-                ax_attack2.set_facecolor(CHART_BG)
+                ax_attack2.set_facecolor("white")
                 attack_df2 = df[
                     df["Prediction"] != "Normal Traffic"
                 ]["Prediction"].value_counts()
                 attack_df2.plot(kind="barh", ax=ax_attack2,
                                 color=ATTACK_COLOR, edgecolor="none")
                 ax_attack2.set_title("Attack Type Breakdown",
-                                     fontsize=10, color=NEUTRAL_COLOR)
+                                     fontsize=10, color="#2c3e50")
                 ax_attack2.set_xlabel("Number of Flows",
-                                      fontsize=8, color=NEUTRAL_COLOR)
+                                      fontsize=8, color="#2c3e50")
                 ax_attack2.spines["top"].set_visible(False)
                 ax_attack2.spines["right"].set_visible(False)
-                ax_attack2.spines["left"].set_color(GRID_COLOR)
-                ax_attack2.spines["bottom"].set_color(GRID_COLOR)
-                ax_attack2.tick_params(colors=NEUTRAL_COLOR, labelsize=7)
+                ax_attack2.spines["left"].set_color("#dddddd")
+                ax_attack2.spines["bottom"].set_color("#dddddd")
+                ax_attack2.tick_params(colors="#2c3e50", labelsize=7)
 
             ax_risk2 = fig2.add_subplot(2, 2, 4)
-            ax_risk2.set_facecolor(CHART_BG)
+            ax_risk2.set_facecolor("white")
             ax_risk2.bar(["Low", "Medium", "High"],
                          [low_risk, med_risk, high_risk],
                          color=[NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR],
                          edgecolor="none")
             ax_risk2.set_title("Risk Level Distribution",
-                               fontsize=10, color=NEUTRAL_COLOR)
+                               fontsize=10, color="#2c3e50")
             ax_risk2.set_ylabel("Number of Flows",
-                                fontsize=8, color=NEUTRAL_COLOR)
+                                fontsize=8, color="#2c3e50")
             ax_risk2.spines["top"].set_visible(False)
             ax_risk2.spines["right"].set_visible(False)
-            ax_risk2.spines["left"].set_color(GRID_COLOR)
-            ax_risk2.spines["bottom"].set_color(GRID_COLOR)
-            ax_risk2.tick_params(colors=NEUTRAL_COLOR, labelsize=7)
+            ax_risk2.spines["left"].set_color("#dddddd")
+            ax_risk2.spines["bottom"].set_color("#dddddd")
+            ax_risk2.tick_params(colors="#2c3e50", labelsize=7)
 
-            fig2.text(
-                0.5, 0.02,
-                "AI-IDS — BAAZA Idriss — 2025/2026 | https://ai-ids-baaza.streamlit.app",
-                ha="center", fontsize=8, color="gray"
-            )
+            fig2.text(0.5, 0.02,
+                      "AI-IDS — BAAZA Idriss — 2025/2026",
+                      ha="center", fontsize=8, color="gray")
 
-            plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+            plt.tight_layout(rect=[0, 0.04, 1, 0.94])
             pdf.savefig(fig2, bbox_inches="tight")
             plt.close(fig2)
 
