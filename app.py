@@ -674,127 +674,172 @@ if uploaded_file is not None:
             pdf.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
-            # ---- PAGE 2: CHARTS ----
-            fig2 = plt.figure(figsize=(8.5, 11))
-            fig2.patch.set_facecolor("white")
+            # ---- PAGE 2: TRAFFIC COMPOSITION ----
+            fig_p2 = plt.figure(figsize=(8.5, 11))
+            fig_p2.patch.set_facecolor("white")
 
-            fig2.text(0.5, 0.97, "AI-IDS — Visual Analysis",
-                      ha="center", fontsize=14,
-                      fontweight="bold", color="#2c3e50")
+            fig_p2.text(0.5, 0.95, "Visual Analysis — Traffic Overview",
+                        ha="center", fontsize=14,
+                        fontweight="bold", color="#2c3e50")
 
-            ax_div_p2 = fig2.add_axes([0.05, 0.955, 0.9, 0.003])
+            ax_div_p2 = fig_p2.add_axes([0.05, 0.935, 0.9, 0.003])
             ax_div_p2.axhline(0, color=ATTACK_COLOR, linewidth=2)
             ax_div_p2.axis("off")
 
-            # Chart 1 — Pie
-            ax_pie2 = fig2.add_axes([0.1, 0.72, 0.8, 0.22])
-            ax_pie2.set_facecolor("white")
+            # Pie chart centered
+            ax_pie_p2 = fig_p2.add_axes([0.2, 0.58, 0.6, 0.33])
+            ax_pie_p2.set_facecolor("white")
             pie_colors2 = [get_color(l) for l in prediction_counts.index]
             short_labels2 = [
                 "Normal" if l == "Normal Traffic" else l
                 for l in prediction_counts.index
             ]
-            wedges2, texts2, autotexts2 = ax_pie2.pie(
+            wedges2, texts2, autotexts2 = ax_pie_p2.pie(
                 prediction_counts.values.tolist(),
                 colors=pie_colors2,
                 autopct="%1.1f%%",
                 startangle=90,
                 labels=short_labels2,
-                textprops={"fontsize": 8, "color": "#2c3e50"}
+                textprops={"fontsize": 10, "color": "#2c3e50"}
             )
             for at in autotexts2:
                 at.set_color("#2c3e50")
-            ax_pie2.set_title("Traffic Composition",
-                              fontsize=11, color="#2c3e50", pad=8)
+                at.set_fontsize(10)
+            ax_pie_p2.set_title("Traffic Composition",
+                                fontsize=13, color="#2c3e50", pad=12)
 
-            fig2.text(0.5, 0.71,
-                      "Distribution of normal vs attack traffic in the uploaded file.",
-                      ha="center", fontsize=8, color="gray", style="italic")
-
-            ax_div_c1 = fig2.add_axes([0.05, 0.695, 0.9, 0.002])
-            ax_div_c1.axhline(0, color="#dddddd", linewidth=1)
-            ax_div_c1.axis("off")
-
-            # Chart 2 — Bar
-            ax_bar2 = fig2.add_axes([0.1, 0.49, 0.8, 0.19])
-            ax_bar2.set_facecolor("white")
+            # Bar chart below pie
+            ax_bar_p2 = fig_p2.add_axes([0.1, 0.26, 0.8, 0.27])
+            ax_bar_p2.set_facecolor("white")
             bar_colors2 = [get_color(l) for l in prediction_counts.index]
-            prediction_counts.plot(kind="bar", ax=ax_bar2,
+            prediction_counts.plot(kind="bar", ax=ax_bar_p2,
                                    color=bar_colors2, edgecolor="none")
-            ax_bar2.set_title("Prediction Distribution",
-                              fontsize=11, color="#2c3e50")
-            ax_bar2.set_ylabel("Number of Flows",
-                               fontsize=8, color="#2c3e50")
-            ax_bar2.spines["top"].set_visible(False)
-            ax_bar2.spines["right"].set_visible(False)
-            ax_bar2.spines["left"].set_color("#dddddd")
-            ax_bar2.spines["bottom"].set_color("#dddddd")
-            ax_bar2.tick_params(colors="#2c3e50", labelsize=8)
-            plt.setp(ax_bar2.xaxis.get_majorticklabels(),
-                     rotation=30, fontsize=8)
+            ax_bar_p2.set_title("Prediction Distribution by Class",
+                                fontsize=13, color="#2c3e50", pad=10)
+            ax_bar_p2.set_ylabel("Number of Flows",
+                                 fontsize=9, color="#2c3e50")
+            ax_bar_p2.set_xlabel("")
+            ax_bar_p2.spines["top"].set_visible(False)
+            ax_bar_p2.spines["right"].set_visible(False)
+            ax_bar_p2.spines["left"].set_color("#dddddd")
+            ax_bar_p2.spines["bottom"].set_color("#dddddd")
+            ax_bar_p2.tick_params(colors="#2c3e50", labelsize=9)
+            ax_bar_p2.yaxis.grid(True, color="#eeeeee", linewidth=0.5)
+            ax_bar_p2.set_axisbelow(True)
+            plt.setp(ax_bar_p2.xaxis.get_majorticklabels(),
+                     rotation=25, fontsize=9)
 
-            fig2.text(0.5, 0.475,
-                      "Number of flows per predicted class. Green = normal, Red = attack.",
-                      ha="center", fontsize=8, color="gray", style="italic")
+            # Explanation box
+            explanation_p2 = (
+                "Figure 1 (pie chart) shows the overall proportion of normal vs attack traffic "
+                "in the uploaded file. Each slice represents one traffic category, with green "
+                "indicating normal connections and red indicating detected attacks.\n\n"
+                "Figure 2 (bar chart) shows the exact count of flows per predicted class. "
+                "This allows the analyst to quickly compare the volume of each attack type "
+                "and identify which category is most prevalent in the captured traffic."
+            )
+            fig_p2.text(0.08, 0.04, explanation_p2,
+                        fontsize=8.5, color="#444444",
+                        wrap=True, va="top",
+                        bbox=dict(boxstyle="round,pad=0.5",
+                                  facecolor="#f8f8f8",
+                                  edgecolor="#dddddd"))
 
-            ax_div_c2 = fig2.add_axes([0.05, 0.455, 0.9, 0.002])
-            ax_div_c2.axhline(0, color="#dddddd", linewidth=1)
-            ax_div_c2.axis("off")
+            fig_p2.text(0.5, 0.02,
+                        "AI-IDS — BAAZA Idriss — 2025/2026",
+                        ha="center", fontsize=8, color="gray")
 
-            # Chart 3 — Attack Breakdown or Risk
+            pdf.savefig(fig_p2, bbox_inches="tight")
+            plt.close(fig_p2)
+
+            # ---- PAGE 3: ATTACK BREAKDOWN ----
             if attack_count > 0:
-                ax_attack2 = fig2.add_axes([0.1, 0.265, 0.8, 0.17])
-                ax_attack2.set_facecolor("white")
-                attack_df2 = df[
+                fig_p3 = plt.figure(figsize=(8.5, 11))
+                fig_p3.patch.set_facecolor("white")
+
+                fig_p3.text(0.5, 0.95, "Visual Analysis — Attack Details",
+                            ha="center", fontsize=14,
+                            fontweight="bold", color="#2c3e50")
+
+                ax_div_p3 = fig_p3.add_axes([0.05, 0.935, 0.9, 0.003])
+                ax_div_p3.axhline(0, color=ATTACK_COLOR, linewidth=2)
+                ax_div_p3.axis("off")
+
+                # Attack breakdown chart
+                ax_att_p3 = fig_p3.add_axes([0.15, 0.62, 0.75, 0.28])
+                ax_att_p3.set_facecolor("white")
+                attack_df3 = df[
                     df["Prediction"] != "Normal Traffic"
                 ]["Prediction"].value_counts()
-                attack_df2.plot(kind="barh", ax=ax_attack2,
+                attack_df3.plot(kind="barh", ax=ax_att_p3,
                                 color=ATTACK_COLOR, edgecolor="none")
-                ax_attack2.set_title("Attack Type Breakdown",
-                                     fontsize=11, color="#2c3e50")
-                ax_attack2.set_xlabel("Number of Flows",
-                                      fontsize=8, color="#2c3e50")
-                ax_attack2.spines["top"].set_visible(False)
-                ax_attack2.spines["right"].set_visible(False)
-                ax_attack2.spines["left"].set_color("#dddddd")
-                ax_attack2.spines["bottom"].set_color("#dddddd")
-                ax_attack2.tick_params(colors="#2c3e50", labelsize=8)
+                ax_att_p3.set_title("Detected Attack Types",
+                                    fontsize=13, color="#2c3e50", pad=10)
+                ax_att_p3.set_xlabel("Number of Flows",
+                                     fontsize=9, color="#2c3e50")
+                ax_att_p3.set_ylabel("")
+                ax_att_p3.spines["top"].set_visible(False)
+                ax_att_p3.spines["right"].set_visible(False)
+                ax_att_p3.spines["left"].set_color("#dddddd")
+                ax_att_p3.spines["bottom"].set_color("#dddddd")
+                ax_att_p3.tick_params(colors="#2c3e50", labelsize=9)
+                ax_att_p3.xaxis.grid(True, color="#eeeeee", linewidth=0.5)
+                ax_att_p3.set_axisbelow(True)
 
-                fig2.text(0.5, 0.248,
-                          "Number of detected flows per attack category.",
-                          ha="center", fontsize=8, color="gray", style="italic")
+                # Risk distribution chart
+                ax_risk_p3 = fig_p3.add_axes([0.15, 0.33, 0.75, 0.24])
+                ax_risk_p3.set_facecolor("white")
+                risk_bars = ax_risk_p3.bar(
+                    ["Low (0-30)", "Medium (31-70)", "High (71-100)"],
+                    [low_risk, med_risk, high_risk],
+                    color=[NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR],
+                    edgecolor="none",
+                    width=0.5
+                )
+                for bar, val in zip(risk_bars, [low_risk, med_risk, high_risk]):
+                    ax_risk_p3.text(
+                        bar.get_x() + bar.get_width() / 2,
+                        bar.get_height() + 0.3,
+                        f"{val:,}",
+                        ha="center", fontsize=9, color="#2c3e50"
+                    )
+                ax_risk_p3.set_title("Risk Level Distribution",
+                                     fontsize=13, color="#2c3e50", pad=10)
+                ax_risk_p3.set_ylabel("Number of Flows",
+                                      fontsize=9, color="#2c3e50")
+                ax_risk_p3.spines["top"].set_visible(False)
+                ax_risk_p3.spines["right"].set_visible(False)
+                ax_risk_p3.spines["left"].set_color("#dddddd")
+                ax_risk_p3.spines["bottom"].set_color("#dddddd")
+                ax_risk_p3.tick_params(colors="#2c3e50", labelsize=9)
+                ax_risk_p3.yaxis.grid(True, color="#eeeeee", linewidth=0.5)
+                ax_risk_p3.set_axisbelow(True)
 
-                ax_div_c3 = fig2.add_axes([0.05, 0.23, 0.9, 0.002])
-                ax_div_c3.axhline(0, color="#dddddd", linewidth=1)
-                ax_div_c3.axis("off")
+                # Explanation
+                explanation_p3 = (
+                    "Figure 3 (horizontal bar chart) shows the breakdown of detected attack "
+                    "types. Each bar represents one attack category and its total flow count. "
+                    "This helps the security team prioritize which type of attack to investigate "
+                    "first based on volume.\n\n"
+                    "Figure 4 (risk distribution) classifies every connection by risk level. "
+                    "Low risk (0-30) includes normal and low-confidence connections. "
+                    "Medium risk (31-70) covers moderate threats. "
+                    "High risk (71-100) represents confirmed high-confidence attacks "
+                    "that require immediate attention."
+                )
+                fig_p3.text(0.08, 0.06, explanation_p3,
+                            fontsize=8.5, color="#444444",
+                            va="top",
+                            bbox=dict(boxstyle="round,pad=0.5",
+                                      facecolor="#f8f8f8",
+                                      edgecolor="#dddddd"))
 
-            # Chart 4 — Risk Distribution
-            ax_risk2 = fig2.add_axes([0.1, 0.07, 0.8, 0.15])
-            ax_risk2.set_facecolor("white")
-            ax_risk2.bar(["Low (0-30)", "Medium (31-70)", "High (71-100)"],
-                         [low_risk, med_risk, high_risk],
-                         color=[NORMAL_COLOR, MEDIUM_COLOR, ATTACK_COLOR],
-                         edgecolor="none")
-            ax_risk2.set_title("Risk Level Distribution",
-                               fontsize=11, color="#2c3e50")
-            ax_risk2.set_ylabel("Number of Flows",
-                                fontsize=8, color="#2c3e50")
-            ax_risk2.spines["top"].set_visible(False)
-            ax_risk2.spines["right"].set_visible(False)
-            ax_risk2.spines["left"].set_color("#dddddd")
-            ax_risk2.spines["bottom"].set_color("#dddddd")
-            ax_risk2.tick_params(colors="#2c3e50", labelsize=8)
+                fig_p3.text(0.5, 0.02,
+                            "AI-IDS — BAAZA Idriss — 2025/2026",
+                            ha="center", fontsize=8, color="gray")
 
-            fig2.text(0.5, 0.055,
-                      "Risk score distribution: Low (0-30), Medium (31-70), High (71-100).",
-                      ha="center", fontsize=8, color="gray", style="italic")
-
-            fig2.text(0.5, 0.02,
-                      "AI-IDS — BAAZA Idriss — 2025/2026",
-                      ha="center", fontsize=8, color="gray")
-
-            pdf.savefig(fig2, bbox_inches="tight")
-            plt.close(fig2)
+                pdf.savefig(fig_p3, bbox_inches="tight")
+                plt.close(fig_p3)
 
         pdf_buffer.seek(0)
         return pdf_buffer
