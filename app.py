@@ -900,7 +900,7 @@ if uploaded_file is not None:
     # =========================
     st.markdown("---")
     st.subheader("Security Alert Notification")
-    st.markdown("Enter your email to receive a security alert report for this analysis.")
+    st.markdown("Enter your email address to receive a security alert with the full PDF report attached.")
 
     recipient_email = st.text_input("Your email address:", placeholder="example@email.com")
 
@@ -910,72 +910,205 @@ if uploaded_file is not None:
                 import smtplib
                 from email.mime.text import MIMEText
                 from email.mime.multipart import MIMEMultipart
+                from email.mime.application import MIMEApplication
 
                 sender_email = st.secrets["GMAIL_ADDRESS"]
                 sender_password = st.secrets["GMAIL_PASSWORD"]
 
-                msg = MIMEMultipart("alternative")
+                msg = MIMEMultipart("mixed")
                 msg["Subject"] = f"AI-IDS Security Alert — Threat Level: {threat_level}"
-                msg["From"] = sender_email
+                msg["From"] = f"AI-IDS System <{sender_email}>"
                 msg["To"] = recipient_email
 
-                email_body = f"""
-AI-IDS SECURITY ALERT
-=====================
+                threat_color_map = {
+                    "SAFE": "#52796f",
+                    "LOW": "#d4ac0d",
+                    "WARNING": "#ca6f1e",
+                    "CRITICAL": "#ae2012"
+                }
+                tc = threat_color_map.get(threat_level, "#2c3e50")
 
-Threat Level: {threat_level}
-{threat_msg}
-
-ANALYSIS SUMMARY
-----------------
-File Analyzed      : {uploaded_file.name}
-Total Flows        : {len(df):,}
-Normal Traffic     : {normal_count:,} ({100 - attack_percentage:.1f}%)
-Attacks Detected   : {attack_count:,} ({attack_percentage:.1f}%)
-High Risk Flows    : {high_risk_count:,}
-Low Confidence     : {low_confidence_count}
-
-RISK BREAKDOWN
---------------
-Low Risk (0-30)    : {low_risk:,} flows
-Medium Risk (31-70): {med_risk:,} flows
-High Risk (71-100) : {high_risk:,} flows
-
-ATTACK BREAKDOWN
-----------------
-{df[df['Prediction'] != 'Normal Traffic']['Prediction'].value_counts().to_string()}
-
-RECOMMENDATIONS
----------------
-"""
-                if threat_level == "SAFE":
-                    email_body += "Network traffic appears normal. Continue routine monitoring."
-                elif threat_level == "LOW":
-                    email_body += "Low level of suspicious traffic. Monitor closely."
-                elif threat_level == "WARNING":
-                    email_body += "Significant attack traffic detected. Investigate immediately."
+                if attack_count > 0:
+                    attack_rows = ""
+                    for atype, cnt in df[
+                        df["Prediction"] != "Normal Traffic"
+                    ]["Prediction"].value_counts().items():
+                        attack_rows += f"""
+                        <tr>
+                            <td style="padding:8px 12px; color:#ae2012; font-weight:bold;">{atype}</td>
+                            <td style="padding:8px 12px; text-align:right;">{cnt:,} flows</td>
+                        </tr>"""
                 else:
-                    email_body += """CRITICAL: Majority of traffic is malicious. Immediate action required.
-- Isolate affected network segments immediately.
-- Contact security team and escalate to incident response.
-- Preserve logs for forensic analysis."""
+                    attack_rows = '<tr><td colspan="2" style="padding:8px 12px; color:#52796f;">No attacks detected.</td></tr>'
 
-                email_body += f"""
+                if threat_level == "SAFE":
+                    recs = ["Network traffic appears normal. Continue routine monitoring."]
+                elif threat_level == "LOW":
+                    recs = ["Low level of suspicious traffic detected. Monitor closely.",
+                            "Review flagged connections in the detailed table."]
+                elif threat_level == "WARNING":
+                    recs = ["Significant attack traffic detected. Investigate immediately.",
+                            "Consider blocking suspicious source IPs.",
+                            "Review all low-confidence predictions manually."]
+                else:
+                    recs = ["CRITICAL: Majority of traffic is malicious. Immediate action required.",
+                            "Isolate affected network segments immediately.",
+                            "Contact security team and escalate to incident response.",
+                            "Preserve logs for forensic analysis."]
 
-SYSTEM INFORMATION
-------------------
-Model          : Random Forest (500 trees)
-Training Data  : CICIDS2017 (69,150 samples)
-Test Accuracy  : 99.83%
-NSL-KDD Valid. : 98.62%
-Dashboard      : https://ai-ids-baaza.streamlit.app
-GitHub         : https://github.com/baazaidriss/AI-IDS
+                rec_html = "".join([f'<li style="margin-bottom:6px;">{r}</li>' for r in recs])
 
---
-AI-IDS — BAAZA Idriss — 2025/2026
+                html_body = f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0; padding:0; background-color:#f4f6f9; font-family: Arial, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9; padding:30px 0;">
+<tr><td align="center">
+
+<table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background-color:#1a1a2e; padding:30px; text-align:center;">
+      <h1 style="color:#ffffff; margin:0; font-size:22px; letter-spacing:1px;">AI-IDS SECURITY ALERT</h1>
+      <p style="color:#aaaaaa; margin:6px 0 0 0; font-size:13px;">AI-Powered Intrusion Detection System</p>
+    </td>
+  </tr>
+
+  <!-- THREAT LEVEL -->
+  <tr>
+    <td style="background-color:{tc}; padding:20px; text-align:center;">
+      <h2 style="color:#ffffff; margin:0; font-size:20px;">THREAT LEVEL: {threat_level}</h2>
+      <p style="color:#ffffff; margin:8px 0 0 0; font-size:14px; opacity:0.9;">{threat_msg}</p>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="padding:30px;">
+
+      <!-- File info -->
+      <p style="color:#666; font-size:13px; margin:0 0 20px 0;">
+        File analyzed: <strong>{uploaded_file.name}</strong> &nbsp;|&nbsp;
+        Generated: <strong>{now}</strong>
+      </p>
+
+      <!-- Summary -->
+      <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Analysis Summary</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#444;">Total Flows Analyzed</td>
+          <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#1a1a2e;">{len(df):,}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px; color:#444;">Normal Traffic</td>
+          <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#52796f;">{normal_count:,} ({100 - attack_percentage:.1f}%)</td>
+        </tr>
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#444;">Attacks Detected</td>
+          <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#ae2012;">{attack_count:,} ({attack_percentage:.1f}%)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px; color:#444;">High Risk Flows</td>
+          <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#ae2012;">{high_risk_count:,}</td>
+        </tr>
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#444;">Low Confidence Flags</td>
+          <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#1a1a2e;">{low_confidence_count}</td>
+        </tr>
+      </table>
+
+      <!-- Risk breakdown -->
+      <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Risk Breakdown</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#52796f; font-weight:bold;">Low Risk (0-30)</td>
+          <td style="padding:8px 12px; text-align:right; color:#444;">{low_risk:,} flows</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px; color:#ca6f1e; font-weight:bold;">Medium Risk (31-70)</td>
+          <td style="padding:8px 12px; text-align:right; color:#444;">{med_risk:,} flows</td>
+        </tr>
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#ae2012; font-weight:bold;">High Risk (71-100)</td>
+          <td style="padding:8px 12px; text-align:right; color:#444;">{high_risk:,} flows</td>
+        </tr>
+      </table>
+
+      <!-- Attack breakdown -->
+      <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Attack Breakdown</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        {attack_rows}
+      </table>
+
+      <!-- Recommendations -->
+      <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Recommendations</h3>
+      <ul style="color:#444; font-size:14px; padding-left:20px; margin:0 0 20px 0;">
+        {rec_html}
+      </ul>
+
+      <!-- System info -->
+      <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">System Information</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#666;">Model</td>
+          <td style="padding:8px 12px; color:#1a1a2e; font-weight:bold;">Random Forest (500 trees)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px; color:#666;">Training Dataset</td>
+          <td style="padding:8px 12px; color:#1a1a2e; font-weight:bold;">CICIDS2017 — 69,150 samples</td>
+        </tr>
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#666;">Test Accuracy</td>
+          <td style="padding:8px 12px; color:#1a1a2e; font-weight:bold;">99.83%</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px; color:#666;">NSL-KDD Validation</td>
+          <td style="padding:8px 12px; color:#1a1a2e; font-weight:bold;">98.62%</td>
+        </tr>
+        <tr style="background-color:#f8f8f8;">
+          <td style="padding:8px 12px; color:#666;">Dashboard</td>
+          <td style="padding:8px 12px;"><a href="https://ai-ids-baaza.streamlit.app" style="color:#ae2012;">https://ai-ids-baaza.streamlit.app</a></td>
+        </tr>
+      </table>
+
+      <p style="color:#aaa; font-size:12px; text-align:center; margin:20px 0 0 0;">
+        The full PDF report is attached to this email.<br>
+        AI-IDS — BAAZA Idriss — 2025/2026
+      </p>
+
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background-color:#1a1a2e; padding:15px; text-align:center;">
+      <p style="color:#666; font-size:12px; margin:0;">
+        This alert was generated automatically by the AI-IDS dashboard.
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+
+</body>
+</html>
 """
 
-                msg.attach(MIMEText(email_body, "plain"))
+                msg.attach(MIMEText(html_body, "html"))
+
+                # Attach PDF
+                pdf_attachment = generate_pdf_report()
+                pdf_part = MIMEApplication(pdf_attachment.read(), _subtype="pdf")
+                pdf_part.add_header(
+                    "Content-Disposition",
+                    "attachment",
+                    filename=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                )
+                msg.attach(pdf_part)
 
                 with smtplib.SMTP("smtp.gmail.com", 587) as server:
                     server.ehlo()
@@ -983,7 +1116,7 @@ AI-IDS — BAAZA Idriss — 2025/2026
                     server.login(sender_email, sender_password)
                     server.sendmail(sender_email, recipient_email, msg.as_string())
 
-                st.success(f"Security alert sent successfully to {recipient_email}")
+                st.success(f"Security alert sent successfully to {recipient_email} with PDF report attached.")
 
             except Exception as e:
                 st.error(f"Failed to send email: {str(e)}")
