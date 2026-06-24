@@ -907,105 +907,88 @@ if uploaded_file is not None:
 
 
     # =========================
-    # EMAIL ALERT
+    # EMAIL ALERT — AUTO SEND
     # =========================
-    st.markdown("---")
-    st.subheader("Security Alert Notification")
-    st.markdown("Enter your email address to receive a security alert with the full PDF report attached.")
+    if recipient_email:
+        if attack_count > 0:
+            with st.spinner("Sending security alert email..."):
+                try:
+                    import smtplib
+                    from email.mime.text import MIMEText
+                    from email.mime.multipart import MIMEMultipart
+                    from email.mime.application import MIMEApplication
 
-    recipient_email = st.text_input("Your email address:", placeholder="example@email.com")
+                    sender_email = st.secrets["GMAIL_ADDRESS"]
+                    sender_password = st.secrets["GMAIL_PASSWORD"]
 
-    if recipient_email and attack_count > 0:
-        if st.button("Send Security Alert"):
-            try:
-                import smtplib
-                from email.mime.text import MIMEText
-                from email.mime.multipart import MIMEMultipart
-                from email.mime.application import MIMEApplication
+                    msg = MIMEMultipart("mixed")
+                    msg["Subject"] = f"AI-IDS Security Alert — Threat Level: {threat_level}"
+                    msg["From"] = f"AI-IDS System <{sender_email}>"
+                    msg["To"] = recipient_email
 
-                sender_email = st.secrets["GMAIL_ADDRESS"]
-                sender_password = st.secrets["GMAIL_PASSWORD"]
+                    threat_color_map = {
+                        "SAFE": "#52796f",
+                        "LOW": "#d4ac0d",
+                        "WARNING": "#ca6f1e",
+                        "CRITICAL": "#ae2012"
+                    }
+                    tc = threat_color_map.get(threat_level, "#2c3e50")
 
-                msg = MIMEMultipart("mixed")
-                msg["Subject"] = f"AI-IDS Security Alert — Threat Level: {threat_level}"
-                msg["From"] = f"AI-IDS System <{sender_email}>"
-                msg["To"] = recipient_email
+                    if attack_count > 0:
+                        attack_rows = ""
+                        for atype, cnt in df[
+                            df["Prediction"] != "Normal Traffic"
+                        ]["Prediction"].value_counts().items():
+                            attack_rows += f"""
+                            <tr>
+                                <td style="padding:8px 12px; color:#ae2012; font-weight:bold;">{atype}</td>
+                                <td style="padding:8px 12px; text-align:right;">{cnt:,} flows</td>
+                            </tr>"""
+                    else:
+                        attack_rows = '<tr><td colspan="2" style="padding:8px 12px; color:#52796f;">No attacks detected.</td></tr>'
 
-                threat_color_map = {
-                    "SAFE": "#52796f",
-                    "LOW": "#d4ac0d",
-                    "WARNING": "#ca6f1e",
-                    "CRITICAL": "#ae2012"
-                }
-                tc = threat_color_map.get(threat_level, "#2c3e50")
+                    if threat_level == "SAFE":
+                        recs = ["Network traffic appears normal. Continue routine monitoring."]
+                    elif threat_level == "LOW":
+                        recs = ["Low level of suspicious traffic detected. Monitor closely.",
+                                "Review flagged connections in the detailed table."]
+                    elif threat_level == "WARNING":
+                        recs = ["Significant attack traffic detected. Investigate immediately.",
+                                "Consider blocking suspicious source IPs.",
+                                "Review all low-confidence predictions manually."]
+                    else:
+                        recs = ["CRITICAL: Majority of traffic is malicious. Immediate action required.",
+                                "Isolate affected network segments immediately.",
+                                "Contact security team and escalate to incident response.",
+                                "Preserve logs for forensic analysis."]
 
-                if attack_count > 0:
-                    attack_rows = ""
-                    for atype, cnt in df[
-                        df["Prediction"] != "Normal Traffic"
-                    ]["Prediction"].value_counts().items():
-                        attack_rows += f"""
-                        <tr>
-                            <td style="padding:8px 12px; color:#ae2012; font-weight:bold;">{atype}</td>
-                            <td style="padding:8px 12px; text-align:right;">{cnt:,} flows</td>
-                        </tr>"""
-                else:
-                    attack_rows = '<tr><td colspan="2" style="padding:8px 12px; color:#52796f;">No attacks detected.</td></tr>'
+                    rec_html = "".join([f'<li style="margin-bottom:6px;">{r}</li>' for r in recs])
 
-                if threat_level == "SAFE":
-                    recs = ["Network traffic appears normal. Continue routine monitoring."]
-                elif threat_level == "LOW":
-                    recs = ["Low level of suspicious traffic detected. Monitor closely.",
-                            "Review flagged connections in the detailed table."]
-                elif threat_level == "WARNING":
-                    recs = ["Significant attack traffic detected. Investigate immediately.",
-                            "Consider blocking suspicious source IPs.",
-                            "Review all low-confidence predictions manually."]
-                else:
-                    recs = ["CRITICAL: Majority of traffic is malicious. Immediate action required.",
-                            "Isolate affected network segments immediately.",
-                            "Contact security team and escalate to incident response.",
-                            "Preserve logs for forensic analysis."]
-
-                rec_html = "".join([f'<li style="margin-bottom:6px;">{r}</li>' for r in recs])
-
-                html_body = f"""
+                    html_body = f"""
 <!DOCTYPE html>
 <html>
 <body style="margin:0; padding:0; background-color:#f4f6f9; font-family: Arial, sans-serif;">
-
 <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9; padding:30px 0;">
 <tr><td align="center">
-
 <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:10px; overflow:hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-
-  <!-- HEADER -->
   <tr>
     <td style="background-color:#1a1a2e; padding:30px; text-align:center;">
       <h1 style="color:#ffffff; margin:0; font-size:22px; letter-spacing:1px;">AI-IDS SECURITY ALERT</h1>
       <p style="color:#aaaaaa; margin:6px 0 0 0; font-size:13px;">AI-Powered Intrusion Detection System</p>
     </td>
   </tr>
-
-  <!-- THREAT LEVEL -->
   <tr>
     <td style="background-color:{tc}; padding:20px; text-align:center;">
       <h2 style="color:#ffffff; margin:0; font-size:20px;">THREAT LEVEL: {threat_level}</h2>
       <p style="color:#ffffff; margin:8px 0 0 0; font-size:14px; opacity:0.9;">{threat_msg}</p>
     </td>
   </tr>
-
-  <!-- BODY -->
   <tr>
     <td style="padding:30px;">
-
-      <!-- File info -->
       <p style="color:#666; font-size:13px; margin:0 0 20px 0;">
         File analyzed: <strong>{uploaded_file.name}</strong> &nbsp;|&nbsp;
         Generated: <strong>{now}</strong>
       </p>
-
-      <!-- Summary -->
       <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Analysis Summary</h3>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
         <tr style="background-color:#f8f8f8;">
@@ -1029,8 +1012,6 @@ if uploaded_file is not None:
           <td style="padding:8px 12px; text-align:right; font-weight:bold; color:#1a1a2e;">{low_confidence_count}</td>
         </tr>
       </table>
-
-      <!-- Risk breakdown -->
       <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Risk Breakdown</h3>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
         <tr style="background-color:#f8f8f8;">
@@ -1046,20 +1027,14 @@ if uploaded_file is not None:
           <td style="padding:8px 12px; text-align:right; color:#444;">{high_risk:,} flows</td>
         </tr>
       </table>
-
-      <!-- Attack breakdown -->
       <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Attack Breakdown</h3>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
         {attack_rows}
       </table>
-
-      <!-- Recommendations -->
       <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">Recommendations</h3>
       <ul style="color:#444; font-size:14px; padding-left:20px; margin:0 0 20px 0;">
         {rec_html}
       </ul>
-
-      <!-- System info -->
       <h3 style="color:#1a1a2e; font-size:15px; margin:0 0 10px 0; border-bottom:2px solid #f0f0f0; padding-bottom:6px;">System Information</h3>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
         <tr style="background-color:#f8f8f8;">
@@ -1083,16 +1058,12 @@ if uploaded_file is not None:
           <td style="padding:8px 12px;"><a href="https://ai-ids-baaza.streamlit.app" style="color:#ae2012;">https://ai-ids-baaza.streamlit.app</a></td>
         </tr>
       </table>
-
       <p style="color:#aaa; font-size:12px; text-align:center; margin:20px 0 0 0;">
         The full PDF report is attached to this email.<br>
         AI-IDS — BAAZA Idriss — 2025/2026
       </p>
-
     </td>
   </tr>
-
-  <!-- FOOTER -->
   <tr>
     <td style="background-color:#1a1a2e; padding:15px; text-align:center;">
       <p style="color:#666; font-size:12px; margin:0;">
@@ -1100,40 +1071,35 @@ if uploaded_file is not None:
       </p>
     </td>
   </tr>
-
 </table>
 </td></tr>
 </table>
-
 </body>
-</html>
-"""
+</html>"""
 
-                msg.attach(MIMEText(html_body, "html"))
+                    msg.attach(MIMEText(html_body, "html"))
 
-                # Attach PDF
-                pdf_attachment = generate_pdf_report()
-                pdf_part = MIMEApplication(pdf_attachment.read(), _subtype="pdf")
-                pdf_part.add_header(
-                    "Content-Disposition",
-                    "attachment",
-                    filename=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                )
-                msg.attach(pdf_part)
+                    pdf_attachment = generate_pdf_report()
+                    pdf_part = MIMEApplication(pdf_attachment.read(), _subtype="pdf")
+                    pdf_part.add_header(
+                        "Content-Disposition",
+                        "attachment",
+                        filename=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                    )
+                    msg.attach(pdf_part)
 
-                with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                    server.ehlo()
-                    server.starttls()
-                    server.login(sender_email, sender_password)
-                    server.sendmail(sender_email, recipient_email, msg.as_string())
+                    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                        server.ehlo()
+                        server.starttls()
+                        server.login(sender_email, sender_password)
+                        server.sendmail(sender_email, recipient_email, msg.as_string())
 
-                st.success(f"Security alert sent successfully to {recipient_email} with PDF report attached.")
+                    st.success(f"Security alert sent automatically to {recipient_email} with PDF report attached.")
 
-            except Exception as e:
-                st.error(f"Failed to send email: {str(e)}")
-
-    elif recipient_email and attack_count == 0:
-        st.info("No attacks detected in this analysis. No alert needed.")
+                except Exception as e:
+                    st.error(f"Failed to send email: {str(e)}")
+        else:
+            st.info("No attacks detected. No alert was sent.")
 
 
     # =========================
