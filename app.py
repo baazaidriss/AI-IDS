@@ -148,6 +148,14 @@ model = joblib.load("rf_ids_model.pkl")
 encoder = joblib.load("label_encoder.pkl")
 EXPECTED_COLUMNS = list(model.feature_names_in_)
 
+@st.cache_data
+def run_prediction(df_values, df_columns):
+    df_temp = pd.DataFrame(df_values, columns=df_columns)
+    predictions = model.predict(df_temp)
+    proba = model.predict_proba(df_temp)
+    max_proba = np.max(proba, axis=1)
+    labels = encoder.inverse_transform(predictions)
+    return predictions, proba, max_proba, labels
 # =========================
 # HEADER
 # =========================
@@ -275,10 +283,7 @@ if uploaded_file is not None:
     # =========================
     # PREDICT
     # =========================
-    predictions = model.predict(df)
-    proba = model.predict_proba(df)
-    max_proba = np.max(proba, axis=1)
-    labels = encoder.inverse_transform(predictions)
+    predictions, proba, max_proba, labels = run_prediction(df.values, df.columns.tolist())
 
     df["Confidence"] = [f"{p*100:.1f}%" for p in max_proba]
 
