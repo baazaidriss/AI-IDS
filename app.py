@@ -17,9 +17,8 @@ NORMAL_COLOR = "#52796f"
 ATTACK_COLOR = "#ae2012"
 NEUTRAL_COLOR = "#ffffff"
 MEDIUM_COLOR = "#ca6f1e"
-CHART_BG = "#1a1a2e"
+CHART_BG = "#0e1117"
 GRID_COLOR = "#2d2d44"
-CHART_SIZE = (5, 3.5)
 
 # =========================
 # PAGE CONFIG
@@ -35,43 +34,51 @@ st.set_page_config(
 # =========================
 st.markdown("""
     <style>
-        .main { background-color: #f4f6f9; }
+        .main { background-color: #0e1117; }
         h1 {
-            color: #2c3e50;
+            color: #ffffff;
             font-size: 28px;
             font-weight: 700;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid #2d2d44;
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
         h2, h3 {
-            color: #2c3e50;
+            color: #ffffff;
             font-size: 18px;
             font-weight: 600;
             margin-top: 20px;
         }
+        p, div, span, label {
+            color: #cccccc;
+        }
         div[data-testid="metric-container"] {
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
+            background-color: #1a1a2e;
+            border: 1px solid #2d2d44;
             border-radius: 8px;
             padding: 15px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        div[data-testid="metric-container"] label {
+            color: #aaaaaa !important;
+        }
+        div[data-testid="metric-container"] div {
+            color: #ffffff !important;
         }
         section[data-testid="stFileUploader"] {
-            background-color: #ffffff;
-            border: 1px dashed #cccccc;
+            background-color: #1a1a2e;
+            border: 1px dashed #2d2d44;
             border-radius: 8px;
             padding: 10px;
         }
         .stDataFrame { border-radius: 8px; overflow: hidden; }
         .stAlert { border-radius: 8px; }
-        .streamlit-expanderHeader { font-size: 14px; color: #444; }
+        .streamlit-expanderHeader { font-size: 14px; color: #cccccc; }
         .footer {
             margin-top: 40px;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid #2d2d44;
             padding-top: 10px;
             font-size: 12px;
-            color: #999;
+            color: #666;
             text-align: center;
         }
         .threat-box {
@@ -83,24 +90,33 @@ st.markdown("""
             margin-bottom: 20px;
         }
         .threat-safe {
-            background-color: #eaf4ee;
-            color: #2d6a4f;
-            border: 2px solid #4a7c59;
+            background-color: #1a2e22;
+            color: #52796f;
+            border: 2px solid #52796f;
         }
         .threat-low {
-            background-color: #fef9e7;
-            color: #7d6608;
+            background-color: #2e2a0e;
+            color: #d4ac0d;
             border: 2px solid #d4ac0d;
         }
         .threat-warning {
-            background-color: #fdf2e9;
-            color: #784212;
+            background-color: #2e1e0e;
+            color: #ca6f1e;
             border: 2px solid #ca6f1e;
         }
         .threat-critical {
-            background-color: #fdedec;
-            color: #922b21;
-            border: 2px solid #c0392b;
+            background-color: #2e0e0e;
+            color: #ae2012;
+            border: 2px solid #ae2012;
+        }
+        [data-testid="stMarkdownContainer"] p {
+            color: #cccccc;
+        }
+        .stSelectbox label {
+            color: #cccccc !important;
+        }
+        hr {
+            border-color: #2d2d44;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -121,10 +137,8 @@ def style_ax(ax, title):
     ax.yaxis.grid(True, color=GRID_COLOR, linewidth=0.5)
     ax.set_axisbelow(True)
 
-def make_fig():
-    fig, ax = plt.subplots(figsize=CHART_SIZE)
-    fig.patch.set_facecolor(CHART_BG)
-    return fig, ax
+def get_color(label):
+    return NORMAL_COLOR if label == "Normal Traffic" else ATTACK_COLOR
 
 # =========================
 # LOAD MODEL
@@ -342,23 +356,23 @@ if uploaded_file is not None:
     st.markdown("---")
 
     # =========================
-    # CHARTS
+    # CHARTS — PIE + BAR
     # =========================
-    def get_color(label):
-        return NORMAL_COLOR if label == "Normal Traffic" else ATTACK_COLOR
+    st.subheader("Traffic Classification Distribution")
 
     prediction_counts = df["Prediction"].value_counts()
 
-    st.subheader("Traffic Classification Distribution")
     col_left, col_pie, col_bar, col_right = st.columns([0.5, 2, 2, 0.5])
 
     with col_pie:
-        fig_pie, ax_pie = plt.subplots(figsize=CHART_SIZE)
+        fig_pie, ax_pie = plt.subplots(figsize=(5, 3.5))
         fig_pie.patch.set_facecolor(CHART_BG)
         ax_pie.set_facecolor(CHART_BG)
         pie_colors = [get_color(l) for l in prediction_counts.index]
-        short_labels = ["Normal" if l == "Normal Traffic" else l
-                        for l in prediction_counts.index]
+        short_labels = [
+            "Normal" if l == "Normal Traffic" else l
+            for l in prediction_counts.index
+        ]
 
         wedges, texts, autotexts = ax_pie.pie(
             prediction_counts.values.tolist(),
@@ -378,7 +392,7 @@ if uploaded_file is not None:
         st.pyplot(fig_pie)
 
     with col_bar:
-        fig_bar, ax_bar = plt.subplots(figsize=CHART_SIZE)
+        fig_bar, ax_bar = plt.subplots(figsize=(5, 4.2))
         fig_bar.patch.set_facecolor(CHART_BG)
         style_ax(ax_bar, "Prediction Distribution")
         bar_colors = [get_color(l) for l in prediction_counts.index]
@@ -387,8 +401,7 @@ if uploaded_file is not None:
             kind="bar",
             ax=ax_bar,
             color=bar_colors,
-            edgecolor="none",
-            linewidth=0
+            edgecolor="none"
         )
         ax_bar.set_ylabel("Number of Flows", fontsize=9, color=NEUTRAL_COLOR)
         ax_bar.set_xlabel("")
@@ -416,7 +429,8 @@ if uploaded_file is not None:
 
         col_left2, col_mid2, col_right2 = st.columns([1, 2, 1])
         with col_mid2:
-            fig2, ax2 = make_fig()
+            fig2, ax2 = plt.subplots(figsize=(5, 3.5))
+            fig2.patch.set_facecolor(CHART_BG)
             style_ax(ax2, "Detected Attack Types")
             attack_df.plot(kind="barh", ax=ax2,
                            color=ATTACK_COLOR, edgecolor="none")
@@ -439,7 +453,8 @@ if uploaded_file is not None:
 
     col_left3, col_mid3, col_right3 = st.columns([1, 2, 1])
     with col_mid3:
-        fig_risk, ax_risk = make_fig()
+        fig_risk, ax_risk = plt.subplots(figsize=(5, 3.5))
+        fig_risk.patch.set_facecolor(CHART_BG)
         style_ax(ax_risk, "Risk Level Distribution")
         risk_labels = ["Low (0-30)", "Medium (31-70)", "High (71-100)"]
         risk_values = [low_risk, med_risk, high_risk]
@@ -586,10 +601,10 @@ if uploaded_file is not None:
             y_pos -= 0.04
 
             if attack_count > 0:
-                attack_counts = df[
+                attack_counts_pdf = df[
                     df["Prediction"] != "Normal Traffic"
                 ]["Prediction"].value_counts()
-                for attack_type, count in attack_counts.items():
+                for attack_type, count in attack_counts_pdf.items():
                     fig.text(0.08, y_pos, attack_type,
                              fontsize=10, color=ATTACK_COLOR)
                     fig.text(0.55, y_pos, f"{count:,} flows",
@@ -649,8 +664,10 @@ if uploaded_file is not None:
             ax_pie2 = fig2.add_subplot(2, 2, 1)
             ax_pie2.set_facecolor(CHART_BG)
             pie_colors2 = [get_color(l) for l in prediction_counts.index]
-            short_labels2 = ["Normal" if l == "Normal Traffic" else l
-                             for l in prediction_counts.index]
+            short_labels2 = [
+                "Normal" if l == "Normal Traffic" else l
+                for l in prediction_counts.index
+            ]
             wedges2, texts2, autotexts2 = ax_pie2.pie(
                 prediction_counts.values.tolist(),
                 colors=pie_colors2,
