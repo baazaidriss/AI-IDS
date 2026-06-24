@@ -896,6 +896,101 @@ if uploaded_file is not None:
 
 
     # =========================
+    # EMAIL ALERT
+    # =========================
+    st.markdown("---")
+    st.subheader("Security Alert Notification")
+    st.markdown("Enter your email to receive a security alert report for this analysis.")
+
+    recipient_email = st.text_input("Your email address:", placeholder="example@email.com")
+
+    if recipient_email and attack_count > 0:
+        if st.button("Send Security Alert"):
+            try:
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+
+                sender_email = st.secrets["GMAIL_ADDRESS"]
+                sender_password = st.secrets["GMAIL_PASSWORD"]
+
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = f"AI-IDS Security Alert — Threat Level: {threat_level}"
+                msg["From"] = sender_email
+                msg["To"] = recipient_email
+
+                email_body = f"""
+AI-IDS SECURITY ALERT
+=====================
+
+Threat Level: {threat_level}
+{threat_msg}
+
+ANALYSIS SUMMARY
+----------------
+File Analyzed      : {uploaded_file.name}
+Total Flows        : {len(df):,}
+Normal Traffic     : {normal_count:,} ({100 - attack_percentage:.1f}%)
+Attacks Detected   : {attack_count:,} ({attack_percentage:.1f}%)
+High Risk Flows    : {high_risk_count:,}
+Low Confidence     : {low_confidence_count}
+
+RISK BREAKDOWN
+--------------
+Low Risk (0-30)    : {low_risk:,} flows
+Medium Risk (31-70): {med_risk:,} flows
+High Risk (71-100) : {high_risk:,} flows
+
+ATTACK BREAKDOWN
+----------------
+{df[df['Prediction'] != 'Normal Traffic']['Prediction'].value_counts().to_string()}
+
+RECOMMENDATIONS
+---------------
+"""
+                if threat_level == "SAFE":
+                    email_body += "Network traffic appears normal. Continue routine monitoring."
+                elif threat_level == "LOW":
+                    email_body += "Low level of suspicious traffic. Monitor closely."
+                elif threat_level == "WARNING":
+                    email_body += "Significant attack traffic detected. Investigate immediately."
+                else:
+                    email_body += """CRITICAL: Majority of traffic is malicious. Immediate action required.
+- Isolate affected network segments immediately.
+- Contact security team and escalate to incident response.
+- Preserve logs for forensic analysis."""
+
+                email_body += f"""
+
+SYSTEM INFORMATION
+------------------
+Model          : Random Forest (500 trees)
+Training Data  : CICIDS2017 (69,150 samples)
+Test Accuracy  : 99.83%
+NSL-KDD Valid. : 98.62%
+Dashboard      : https://ai-ids-baaza.streamlit.app
+GitHub         : https://github.com/baazaidriss/AI-IDS
+
+--
+AI-IDS — BAAZA Idriss — 2025/2026
+"""
+
+                msg.attach(MIMEText(email_body, "plain"))
+
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                    server.login(sender_email, sender_password)
+                    server.sendmail(sender_email, recipient_email, msg.as_string())
+
+                st.success(f"Security alert sent successfully to {recipient_email}")
+
+            except Exception as e:
+                st.error(f"Failed to send email: {str(e)}")
+
+    elif recipient_email and attack_count == 0:
+        st.info("No attacks detected in this analysis. No alert needed.")
+
+
+    # =========================
     # AI CHATBOT
     # =========================
     st.markdown("---")
