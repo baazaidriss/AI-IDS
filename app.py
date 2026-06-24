@@ -331,33 +331,16 @@ if uploaded_file is not None:
     col_left, col_pie, col_bar, col_right = st.columns([0.5, 2, 2, 0.5])
 
     with col_pie:
-        fig_pie, ax_pie = plt.subplots(figsize=CHART_SIZE)
+        fig_pie, ax_pie = plt.subplots(figsize=(5, 3.5))
         pie_colors = [get_color(l) for l in prediction_counts.index]
 
-        wedges, _, autotexts = ax_pie.pie(
+        ax_pie.pie(
             prediction_counts.values.tolist(),
             colors=pie_colors,
             autopct="%1.1f%%",
             startangle=90,
-            textprops={"fontsize": 9, "color": NEUTRAL_COLOR}
-        )
-
-        normal_wedge = wedges[prediction_counts.index.tolist().index("Normal Traffic")] if "Normal Traffic" in prediction_counts.index else wedges[0]
-        attack_wedge = wedges[[i for i, l in enumerate(prediction_counts.index) if l != "Normal Traffic"][0]] if attack_count > 0 else None
-
-        legend_handles = [normal_wedge]
-        legend_labels = ["Normal Traffic"]
-        if attack_wedge:
-            legend_handles.append(attack_wedge)
-            legend_labels.append("Attack Traffic")
-
-        ax_pie.legend(
-            legend_handles,
-            legend_labels,
-            loc="lower center",
-            bbox_to_anchor=(0.5, -0.08),
-            ncol=2,
-            fontsize=9
+            labels=["Normal" if l == "Normal Traffic" else l for l in prediction_counts.index],
+            textprops={"fontsize": 8, "color": NEUTRAL_COLOR}
         )
 
         ax_pie.set_title("Traffic Composition", fontsize=11, color=NEUTRAL_COLOR)
@@ -365,7 +348,7 @@ if uploaded_file is not None:
         st.pyplot(fig_pie)
 
     with col_bar:
-        fig_bar, ax_bar = plt.subplots(figsize=CHART_SIZE)
+        fig_bar, ax_bar = plt.subplots(figsize=(5, 3.5))
         bar_colors = [get_color(l) for l in prediction_counts.index]
 
         prediction_counts.plot(
