@@ -524,7 +524,7 @@ if uploaded_file is not None:
             axes1.axis("off")
 
             y = 0.96
-
+  
             # Title
             fig1.text(0.5, y, "AI-IDS SECURITY INCIDENT REPORT",
                       ha="center", fontsize=16, fontweight="bold", color="#2c3e50")
@@ -891,6 +891,83 @@ if uploaded_file is not None:
         file_name=f"AI-IDS_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
         mime="application/pdf"
     )
+
+
+
+    # =========================
+    # AI CHATBOT
+    # =========================
+    st.markdown("---")
+    st.subheader("Cybersecurity Assistant")
+    st.markdown("Ask any question about the analysis results, attack types, or cybersecurity in general.")
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    for msg in st.session_state.chat_history:
+        if msg["role"] == "user":
+            st.chat_message("user").write(msg["content"])
+        else:
+            st.chat_message("assistant").write(msg["content"])
+
+    user_input = st.chat_input("Ask a question about the analysis or cybersecurity...")
+
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        st.chat_message("user").write(user_input)
+
+        try:
+            from groq import Groq
+
+            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+            system_prompt = f"""You are an expert cybersecurity analyst assistant integrated into an AI-powered Intrusion Detection System dashboard called AI-IDS.
+
+Here is the current analysis context:
+- File analyzed: {uploaded_file.name}
+- Total flows analyzed: {len(df):,}
+- Normal Traffic: {normal_count:,} ({100 - attack_percentage:.1f}%)
+- Attacks Detected: {attack_count:,} ({attack_percentage:.1f}%)
+- Threat Level: {threat_level}
+- High Risk Flows: {high_risk_count:,}
+- Low Risk Flows: {low_risk:,}
+- Medium Risk Flows: {med_risk:,}
+- Model Used: Random Forest (500 trees)
+- Training Dataset: CICIDS2017 (69,150 samples)
+- Model Accuracy: 99.83%
+- NSL-KDD Validation: 98.62%
+
+Attack breakdown:
+{df[df['Prediction'] != 'Normal Traffic']['Prediction'].value_counts().to_string() if attack_count > 0 else 'No attacks detected'}
+
+You can answer questions about:
+- The current analysis results and what they mean
+- Definitions and explanations of attack types (DDoS, DoS, Brute Force, Port Scanning)
+- Cybersecurity concepts and best practices
+- How the AI-IDS model works
+- What actions to take based on the results
+- Any general cybersecurity question
+
+Be clear, professional, and concise. Always relate your answers to the context when relevant."""
+
+            response = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    *st.session_state.chat_history
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+
+            answer = response.choices[0].message.content
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+            st.chat_message("assistant").write(answer)
+
+        except Exception as e:
+            st.error(f"Chatbot error: {str(e)}")
+
+
 
     # =========================
     # FOOTER
