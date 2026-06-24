@@ -519,7 +519,7 @@ if uploaded_file is not None:
             # ============================
             # PAGE 1 — SUMMARY
             # ============================
-            fig1, axes1 = plt.subplots(figsize=(9.27, 11.69))
+            fig1, axes1 = plt.subplots(figsize=(9.00, 11.69))
             fig1.patch.set_facecolor("white")
             axes1.axis("off")
 
