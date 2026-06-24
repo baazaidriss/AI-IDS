@@ -181,6 +181,16 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
 
+    if "last_uploaded_file" not in st.session_state:
+        st.session_state.last_uploaded_file = None
+    if "email_sent" not in st.session_state:
+        st.session_state.email_sent = False
+
+    file_changed = uploaded_file.name != st.session_state.last_uploaded_file
+    if file_changed:
+        st.session_state.last_uploaded_file = uploaded_file.name
+        st.session_state.email_sent = False
+
     file_name = uploaded_file.name.lower()
 
     if file_name.endswith(".csv"):
@@ -909,7 +919,7 @@ if uploaded_file is not None:
     # =========================
     # EMAIL ALERT — AUTO SEND
     # =========================
-    if recipient_email:
+    if recipient_email and not st.session_state.email_sent:
         if attack_count > 0:
             with st.spinner("Sending security alert email..."):
                 try:
@@ -1094,6 +1104,7 @@ if uploaded_file is not None:
                         server.login(sender_email, sender_password)
                         server.sendmail(sender_email, recipient_email, msg.as_string())
 
+                    st.session_state.email_sent = True
                     st.success(f"Security alert sent automatically to {recipient_email} with PDF report attached.")
 
                 except Exception as e:
