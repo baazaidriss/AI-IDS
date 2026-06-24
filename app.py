@@ -1110,7 +1110,7 @@ if uploaded_file is not None:
                         server.sendmail(sender_email, recipient_email, msg.as_string())
 
                     st.session_state.email_sent = True
-                    st.success(f"Security alert sent automatically to {recipient_email} with PDF report attached.")
+                    st.toast(f"Security alert sent to {recipient_email}")
 
                 except Exception as e:
                     st.error(f"Failed to send email: {str(e)}")
